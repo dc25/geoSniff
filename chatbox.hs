@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 -- | A simple chatbox application using Haste.App.
 --   While this example could be considerably shorter, the API calls are broken
 --   out to demonstrate how one might want to pass them around in a larger
@@ -54,6 +56,10 @@ await state = do
   (clients, _) <- state
   liftIO $ readIORef clients >>= maybe (return ("","")) C.takeMVar . lookup sid
 
+sniff :: Server State -> IO ()
+sniff state = do
+        return ()
+
 -- | Scroll to the bottom of a textarea.
 scrollToBottom :: Elem -> Client ()
 scrollToBottom el = getProp el "scrollHeight" >>= setProp el "scrollTop"
@@ -85,6 +91,7 @@ clientMain api = withElems ["name","message","chat"] $ \[name, msg, chat] -> do
         return ()
   return ()
 
+
 -- | Launch the application!
 main :: IO ()
 main = do
@@ -96,6 +103,8 @@ main = do
       clients <- newIORef []
       messages <- newIORef []
       return (clients, messages)
+
+    forkServerIO $ liftIO $ sniff state
 
     -- Create an API object holding all available functions
     api <- API <$> remote (hello state)
