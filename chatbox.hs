@@ -56,9 +56,18 @@ await state = do
   (clients, _) <- state
   liftIO $ readIORef clients >>= maybe (return ("","")) C.takeMVar . lookup sid
 
-sniff :: Server State -> IO ()
+sniff :: Server State -> Server ()
 sniff state = do
-        return ()
+  (clients, messages) <- state
+  liftIO $ forever $ do
+    C.threadDelay 2000000
+    cs <- readIORef clients
+    let sender="sniff"
+    let msg="notghing"
+    atomicModifyIORef messages $ \msgs -> ((sender, msg):take 99 msgs, ())
+    -- Fork a new thread for each MVar so slow clients don't hold up fast ones.
+    forM_ cs $ \(_, v) -> C.forkIO $ C.putMVar v (sender, msg)
+
 
 -- | Scroll to the bottom of a textarea.
 scrollToBottom :: Elem -> Client ()
@@ -104,7 +113,7 @@ main = do
       messages <- newIORef []
       return (clients, messages)
 
-    forkServerIO $ liftIO $ sniff state
+    forkServerIO $ sniff state
 
     -- Create an API object holding all available functions
     api <- API <$> remote (hello state)
