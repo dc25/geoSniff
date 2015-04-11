@@ -13,6 +13,13 @@ import Data.List (lookup)
 import Data.IORef
 import qualified Data.Set as S
 
+import Foreign
+#ifndef __HASTE__
+import Network.Pcap
+import Network.TcpPacket
+#endif
+
+
 -- | A chat message consists of a sender name and a message.
 type Message = (String, String)
 
@@ -56,18 +63,24 @@ await state = do
   (clients, _) <- state
   liftIO $ readIORef clients >>= maybe (return ("","")) C.takeMVar . lookup sid
 
+#ifndef __HASTE__
+process :: Server State -> Server PcapHandle -> Server ()
+process state hndl = do
+    hndl' <- hndl
+    (hdr,pkt) <- liftIO $ Network.Pcap.next hndl'
+    bytes <- liftIO $ peekArray (fromIntegral (hdrCaptureLength hdr)) pkt
+    case filterEthernet bytes of 
+        Just packet -> send state "sniff" $ show packet
+        _ -> return ()
+    process state hndl -- loop forever
+
+
 sniff :: Server State -> Server ()
 sniff state = do
-  (clients, messages) <- state
-  liftIO $ forever $ do
-    C.threadDelay 2000000
-    cs <- readIORef clients
-    let sender="sniff"
-    let msg="notghing"
-    atomicModifyIORef messages $ \msgs -> ((sender, msg):take 99 msgs, ())
-    -- Fork a new thread for each MVar so slow clients don't hold up fast ones.
-    forM_ cs $ \(_, v) -> C.forkIO $ C.putMVar v (sender, msg)
+  let handle = liftIO $ openLive "wlan0" 5000 False 0
+  process state handle 
 
+#endif
 
 -- | Scroll to the bottom of a textarea.
 scrollToBottom :: Elem -> Client ()
@@ -113,7 +126,9 @@ main = do
       messages <- newIORef []
       return (clients, messages)
 
+#ifndef __HASTE__
     forkServerIO $ sniff state
+#endif
 
     -- Create an API object holding all available functions
     api <- API <$> remote (hello state)
