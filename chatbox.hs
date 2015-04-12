@@ -75,8 +75,11 @@ process state hndl = do
 
 sniff :: Server State -> Server ()
 sniff state = do
-  let handle = liftIO $ openLive "wlan0" 5000 False 0
-  process state handle 
+  let hndl = openLive "wlan0" 500 False 0
+  let hndl' = liftIO $ hndl
+  handle <- hndl'
+  liftIO $ setFilter handle "tcp[13] & 7!=0" True 0
+  process state hndl'
 
 processIO :: PcapHandle -> IO ()
 processIO hndl = do
