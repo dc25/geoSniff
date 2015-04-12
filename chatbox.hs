@@ -78,6 +78,23 @@ sniff state = do
   let handle = liftIO $ openLive "wlan0" 5000 False 0
   process state handle 
 
+processIO :: PcapHandle -> IO ()
+processIO hndl = do
+    (hdr,pkt) <- Network.Pcap.next hndl
+    bytes <- peekArray (fromIntegral (hdrCaptureLength hdr)) pkt
+    case filterEthernet bytes of 
+        -- Just packet -> send state "sniff" $ show packet
+        Just packet -> putStrLn $ show packet
+        -- _ -> print bytes
+        _ -> return ()
+    processIO hndl -- loop forever
+
+
+sniffIO :: IO ()
+sniffIO = do
+  handle <- openLive "wlan0" 500 False 0
+  processIO handle 
+
 
 -- | Scroll to the bottom of a textarea.
 scrollToBottom :: Elem -> Client ()
@@ -124,6 +141,8 @@ main = do
       return (clients, messages)
 
     forkServerIO $ sniff state
+    -- liftServerIO $ sniffIO
+
 
     -- Create an API object holding all available functions
     api <- API <$> remote (hello state)
