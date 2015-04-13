@@ -74,11 +74,10 @@ process state hndl = do
 
 sniff :: Server State -> Server ()
 sniff state = do
-  let hndl = openLive "wlan0" 500 False 0
-  let hndl' = liftIO $ hndl
-  handle <- hndl'
-  liftIO $ setFilter handle "tcp[13] & 7!=0" True 0
-  process state hndl'
+  let hndl = liftIO $ openLive "wlan0" 500 False 0
+  -- handle <- hndl
+  -- liftIO $ setFilter handle "tcp[13] & 7!=0" True 0
+  process state hndl
 
 -- | Send a message; keep a backlog of 100 messages.
 sendIO :: IO State -> String -> String -> IO ()
@@ -147,10 +146,10 @@ main = do
       clients <- newIORef []
       messages <- newIORef []
       let stateIO = return (clients,messages)
-      C.forkIO $ sniffIO stateIO
+      -- C.forkIO $ sniffIO stateIO
       stateIO
 
-    -- forkServerIO $ sniff state
+    forkServerIO $ sniff state
 
     -- Create an API object holding all available functions
     api <- API <$> remote (hello state)
