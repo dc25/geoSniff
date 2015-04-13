@@ -61,10 +61,9 @@ await state = do
   (clients, _) <- state
   liftIO $ readIORef clients >>= maybe (return ("","")) C.takeMVar . lookup sid
 
-process :: Server State -> Server PcapHandle -> Server ()
+process :: Server State -> PcapHandle -> Server ()
 process state hndl = do
-    hndl' <- hndl
-    (hdr,pkt) <- liftIO $ Network.Pcap.next hndl'
+    (hdr,pkt) <- liftIO $ Network.Pcap.next hndl
     bytes <- liftIO $ peekArray (fromIntegral (hdrCaptureLength hdr)) pkt
     case filterEthernet bytes of 
         -- Just packet -> send state "sniff" $ show packet
@@ -74,7 +73,7 @@ process state hndl = do
 
 sniff :: Server State -> Server ()
 sniff state = do
-  let hndl = liftIO $ openLive "wlan0" 500 False 0
+  hndl <- liftIO $ openLive "wlan0" 500 False 0
   -- handle <- hndl
   -- liftIO $ setFilter handle "tcp[13] & 7!=0" True 0
   process state hndl
