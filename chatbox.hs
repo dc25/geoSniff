@@ -66,41 +66,16 @@ process state hndl = do
     (hdr,pkt) <- liftIO $ Network.Pcap.next hndl
     bytes <- liftIO $ peekArray (fromIntegral (hdrCaptureLength hdr)) pkt
     case filterEthernet bytes of 
-        -- Just packet -> send state "sniff" $ show packet
-        Just packet -> liftIO $ print $ show packet
+        Just packet -> send state "sniff" $ show packet
         _ -> return ()
     process state hndl -- loop forever
 
 sniff :: Server State -> Server ()
 sniff state = do
   hndl <- liftIO $ openLive "wlan0" 500 False 0
-  -- handle <- hndl
-  -- liftIO $ setFilter handle "tcp[13] & 7!=0" True 0
+  -- filtering works but not required
+  -- liftIO $ setFilter hndl "tcp[13] & 7!=0" True 0 
   process state hndl
-
--- | Send a message; keep a backlog of 100 messages.
-sendIO :: IO State -> String -> String -> IO ()
-sendIO state sender msg = do
-  (clients, messages) <- state
-  cs <- readIORef clients
-  atomicModifyIORef messages $ \msgs -> ((sender, msg):take 99 msgs, ())
-  -- Fork a new thread for each MVar so slow clients don't hold up fast ones.
-  forM_ cs $ \(_, v) -> C.forkIO $ C.putMVar v (sender, msg)
-
-processIO :: IO State -> PcapHandle -> IO ()
-processIO state hndl = do
-    (hdr,pkt) <- Network.Pcap.next hndl
-    bytes <- peekArray (fromIntegral (hdrCaptureLength hdr)) pkt
-    case filterEthernet bytes of 
-        Just packet -> sendIO state "sniff" $ show packet
-        -- Just packet -> putStrLn $ show packet
-        _ -> return ()
-    processIO state hndl -- loop forever
-
-sniffIO :: IO State -> IO ()
-sniffIO state = do
-  handle <- openLive "wlan0" 500 False 0
-  processIO state handle 
 
 -- | Scroll to the bottom of a textarea.
 scrollToBottom :: Elem -> Client ()
@@ -144,9 +119,7 @@ main = do
     state <- liftServerIO $ do
       clients <- newIORef []
       messages <- newIORef []
-      let stateIO = return (clients,messages)
-      -- C.forkIO $ sniffIO stateIO
-      stateIO
+      return (clients,messages)
 
     forkServerIO $ sniff state
 
