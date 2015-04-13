@@ -61,21 +61,19 @@ await state = do
   (clients, _) <- state
   liftIO $ readIORef clients >>= maybe (return ("","")) C.takeMVar . lookup sid
 
-process :: Server State -> PcapHandle -> Server ()
-process state hndl = do
-    (hdr,pkt) <- liftIO $ Network.Pcap.next hndl
-    bytes <- liftIO $ peekArray (fromIntegral (hdrCaptureLength hdr)) pkt
-    case filterEthernet bytes of 
-        Just packet -> send state "sniff" $ show packet
-        _ -> return ()
-    process state hndl -- loop forever
-
 sniff :: Server State -> Server ()
 sniff state = do
-  hndl <- liftIO $ openLive "wlan0" 500 False 0
+  handle <- liftIO $ openLive "wlan0" 500 False 0
   -- filtering works but not required
-  -- liftIO $ setFilter hndl "tcp[13] & 7!=0" True 0 
-  process state hndl
+  -- liftIO $ setFilter handle "tcp[13] & 7!=0" True 0 
+  process state handle where
+      process st hndl = do
+          (hdr,pkt) <- liftIO $ Network.Pcap.next hndl
+          bytes <- liftIO $ peekArray (fromIntegral (hdrCaptureLength hdr)) pkt
+          case filterEthernet bytes of 
+              Just packet -> send st "sniff" $ show packet
+              _ -> return ()
+          process st hndl -- loop forever
 
 -- | Scroll to the bottom of a textarea.
 scrollToBottom :: Elem -> Client ()
