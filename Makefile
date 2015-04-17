@@ -4,7 +4,7 @@ chatbox.js: chatbox.hs
 	hastec chatbox.hs
 
 chatbox:
-	ghc --make chatbox.hs
+	ghc --make chatbox.hs -threaded
 
 clean:
 	-rm -r main
