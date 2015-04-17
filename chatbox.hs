@@ -15,7 +15,10 @@ import qualified Data.Set as S
 
 import Foreign
 import Network.Pcap
+import Network.Info
 import Network.TcpPacket
+
+import LocateIP
 
 
 -- | A chat message consists of a sender name and a message.
@@ -63,17 +66,29 @@ await state = do
 
 sniff :: Server State -> Server ()
 sniff state = do
+  -- open once outside of loop
   handle <- liftIO $ openLive "wlan0" 500 False 0
   -- filtering works but not required
   -- liftIO $ setFilter handle "tcp[13] & 7!=0" True 0 
-  process state handle where
-      process st hndl = do
-          (hdr,pkt) <- liftIO $ Network.Pcap.next hndl
+
+  -- read network interfaces one time before entering loop
+  localInterfaces <- liftIO $ getNetworkInterfaces
+  let localIPv4 = fmap ipv4 localInterfaces
+
+  process handle localIPv4 getIPLocation where
+      process handle localIPv4 getIPLocation' = do
+          (hdr,pkt) <- liftIO $ Network.Pcap.next handle
           bytes <- liftIO $ peekArray (fromIntegral (hdrCaptureLength hdr)) pkt
           case filterEthernet bytes of 
-              Just packet -> send st "sniff" $ show packet
-              _ -> return ()
-          process st hndl -- loop forever
+              Just packet@(Packet sa _ da _ _) -> do
+                  let remoteIp = if sa `elem` localIPv4 then da else sa 
+                  lookupResults  <- liftIO $ getIPLocation' remoteIp
+                  send state "sniff" $ show packet
+                  send state "sniff location" $ show $ location lookupResults
+                  process handle localIPv4 (lookupFunction lookupResults) -- loop forever
+                  -- process handle localIPv4 getIPLocation' -- loop forever
+
+              _ -> process handle localIPv4 getIPLocation' -- loop forever
 
 -- | Scroll to the bottom of a textarea.
 scrollToBottom :: Elem -> Client ()
