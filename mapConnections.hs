@@ -1,9 +1,8 @@
 {-# LANGUAGE CPP #-}
 
--- | A simple chatbox application using Haste.App.
---   While this example could be considerably shorter, the API calls are broken
---   out to demonstrate how one might want to pass them around in a larger
---   program.
+-- | A utility for doing live display of tcp connections in the browser.
+-- | Started out as a copy of the Haste.App chatbox demo program.
+
 import Haste.App
 import Haste.App.Concurrent
 import qualified Control.Concurrent as C
@@ -16,7 +15,7 @@ import qualified Data.Set as S
 import Foreign
 import Network.Pcap
 import Network.Info
-import Network.TcpPacket
+import TcpPacket
 
 import LocateIP
 
@@ -64,6 +63,20 @@ await state = do
   (clients, _) <- state
   liftIO $ readIORef clients >>= maybe (return ("","")) C.takeMVar . lookup sid
 
+process :: Server State -> PcapHandle -> [Network.Info.IPv4] -> (Network.Info.IPv4 -> IO IPLookupResults) -> Server ()
+process state handle localIPv4 getIPLocation' = do
+    (hdr,pkt) <- liftIO $ Network.Pcap.next handle
+    bytes <- liftIO $ peekArray (fromIntegral (hdrCaptureLength hdr)) pkt
+    case filterEthernet bytes of 
+        Just packet@(Packet sa _ da _ _) -> do
+            let remoteIp = if sa `elem` localIPv4 then da else sa 
+            lookupResults  <- liftIO $ getIPLocation' remoteIp
+            send state "sniff" $ show packet
+            send state "sniff location" $ show $ location lookupResults
+            process state handle localIPv4 (lookupFunction lookupResults) -- loop forever
+
+        _ -> process state handle localIPv4 getIPLocation' -- loop forever
+
 sniff :: Server State -> Server ()
 sniff state = do
   -- open once outside of loop
@@ -75,20 +88,7 @@ sniff state = do
   localInterfaces <- liftIO $ getNetworkInterfaces
   let localIPv4 = fmap ipv4 localInterfaces
 
-  process handle localIPv4 getIPLocation where
-      process handle localIPv4 getIPLocation' = do
-          (hdr,pkt) <- liftIO $ Network.Pcap.next handle
-          bytes <- liftIO $ peekArray (fromIntegral (hdrCaptureLength hdr)) pkt
-          case filterEthernet bytes of 
-              Just packet@(Packet sa _ da _ _) -> do
-                  let remoteIp = if sa `elem` localIPv4 then da else sa 
-                  lookupResults  <- liftIO $ getIPLocation' remoteIp
-                  send state "sniff" $ show packet
-                  send state "sniff location" $ show $ location lookupResults
-                  process handle localIPv4 (lookupFunction lookupResults) -- loop forever
-                  -- process handle localIPv4 getIPLocation' -- loop forever
-
-              _ -> process handle localIPv4 getIPLocation' -- loop forever
+  process state handle localIPv4 getIPLocation 
 
 -- | Scroll to the bottom of a textarea.
 scrollToBottom :: Elem -> Client ()

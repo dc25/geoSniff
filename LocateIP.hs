@@ -1,27 +1,49 @@
+{-# LANGUAGE OverloadedStrings #-}
 module LocateIP (
     Location (..),
     IPLookupResults (..),
     getIPLocation
 ) where
 
-import Data.List.Split
-import qualified Data.Map as M
+import Data.Aeson
+import Control.Applicative
+import qualified Data.ByteString.Lazy as B
 import Network.Info
-import Network.HTTP
+import Network.HTTP.Conduit
 
-data Location = Location Double Double deriving (Show)
+import qualified Data.Map as M
+
+-- | Type of each JSON entry in record syntax.
+data Location =
+  Location { latitude  :: Double,
+              longitude   :: Double
+            } deriving (Show)
+
+instance FromJSON Location where
+  parseJSON (Object p) = Location <$>
+                          ((p .: "location") >>= (.: "latitude")) <*>
+                          ((p .: "location") >>= (.: "longitude")) 
 
 data IPLookupResults = IPLookupResults {
-                           location :: Location,
-                           lookupFunction :: IPv4 -> IO IPLookupResults
+                           location :: Maybe Location,
+                           lookupFunction :: Network.Info.IPv4 -> IO IPLookupResults
                        }
 
-getIPLocationOverInternet :: IPv4 -> IO Location
+getIPLocationOverInternet :: IPv4 -> IO (Maybe Location)
 getIPLocationOverInternet ip = do
-    rsp <- simpleHTTP (getRequest ("http://freegeoip.net/csv/" ++ show ip ))
-    s <- fmap (take 1000) (getResponseBody rsp)
-    let sValues = splitOn "," s
-    return $ Location (read (sValues !! 8)) (read (sValues !! 9))
+    let jsonURL = "http://geoip.nekudo.com/api" ++ show ip
+
+    -- Get JSON data and decode it
+    d <- (eitherDecode <$> simpleHttp jsonURL) :: IO (Either String Location)
+    -- If d is Left, the JSON was malformed.
+    -- In that case, we report the error.
+    -- Otherwise, we perform the operation of
+    -- our choice. In this case, just print it.
+    case d of
+        Left err -> do 
+                       putStrLn err
+                       return Nothing
+        Right ps -> return $ Just ps
 
 getIPLocation:: IPv4 -> IO IPLookupResults
 getIPLocation = getIPLocationMemoized M.empty where

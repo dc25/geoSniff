@@ -1,5 +1,5 @@
-# Running the chatbox example
+# Running the mapConnections program
 
-1. Run `make` to compile the `chatbox` binary.
-2. Run the `chatbox` binary to start the WebSockets server.
-3. In your browser, visit `file:///path/to/examples/chatbox/chatbox.html`
+1. Run `make` to compile the `mapConnections` binary.
+2. Run the `mapConnections` binary to start the WebSockets server.
+3. In your browser, visit `mapConnections.html`

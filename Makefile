@@ -1,17 +1,17 @@
-all: chatbox chatbox.js
+all: mapConnections mapConnections.js
 
-chatbox.js: chatbox.hs
-	hastec chatbox.hs
+mapConnections.js: mapConnections.hs
+	hastec mapConnections.hs
 
-chatbox:
-	ghc --make chatbox.hs -threaded
+mapConnections:
+	ghc --make mapConnections.hs -threaded
 
 clean:
 	-rm -r main
 	-rm *~
-	-rm chatbox.hi
-	-rm chatbox.o
+	-rm mapConnections.hi
+	-rm mapConnections.o
 
 distclean: clean
-	-rm chatbox
-	-rm chatbox.js
+	-rm mapConnections
+	-rm mapConnections.js
