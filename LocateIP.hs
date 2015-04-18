@@ -7,7 +7,6 @@ module LocateIP (
 
 import Data.Aeson
 import Control.Applicative
-import qualified Data.ByteString.Lazy as B
 import Network.Info
 import Network.HTTP.Conduit
 
@@ -31,7 +30,7 @@ data IPLookupResults = IPLookupResults {
 
 getIPLocationOverInternet :: IPv4 -> IO (Maybe Location)
 getIPLocationOverInternet ip = do
-    let jsonURL = "http://geoip.nekudo.com/api" ++ show ip
+    let jsonURL = "http://geoip.nekudo.com/api/" ++ show ip
 
     -- Get JSON data and decode it
     d <- (eitherDecode <$> simpleHttp jsonURL) :: IO (Either String Location)

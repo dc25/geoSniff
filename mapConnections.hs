@@ -15,9 +15,10 @@ import qualified Data.Set as S
 import Foreign
 import Network.Pcap
 import Network.Info
+#ifndef __HASTE__
 import TcpPacket
-
 import LocateIP
+#endif
 
 
 -- | A chat message consists of a sender name and a message.
@@ -63,6 +64,7 @@ await state = do
   (clients, _) <- state
   liftIO $ readIORef clients >>= maybe (return ("","")) C.takeMVar . lookup sid
 
+#ifndef __HASTE__
 process :: Server State -> PcapHandle -> [Network.Info.IPv4] -> (Network.Info.IPv4 -> IO IPLookupResults) -> Server ()
 process state handle localIPv4 getIPLocation' = do
     (hdr,pkt) <- liftIO $ Network.Pcap.next handle
@@ -76,6 +78,7 @@ process state handle localIPv4 getIPLocation' = do
             process state handle localIPv4 (lookupFunction lookupResults) -- loop forever
 
         _ -> process state handle localIPv4 getIPLocation' -- loop forever
+#endif
 
 sniff :: Server State -> Server ()
 sniff state = do
@@ -88,7 +91,11 @@ sniff state = do
   localInterfaces <- liftIO $ getNetworkInterfaces
   let localIPv4 = fmap ipv4 localInterfaces
 
+#ifndef __HASTE__
   process state handle localIPv4 getIPLocation 
+#else
+  return ()
+#endif
 
 -- | Scroll to the bottom of a textarea.
 scrollToBottom :: Elem -> Client ()
