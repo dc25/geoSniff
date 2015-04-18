@@ -2,5 +2,6 @@
 *.hi
 *.js
 *.o
-chatbox
+mapConnections
+dist/
 main/
