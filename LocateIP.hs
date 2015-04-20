@@ -23,11 +23,6 @@ instance FromJSON Location where
                           ((p .: "location") >>= (.: "latitude")) <*>
                           ((p .: "location") >>= (.: "longitude")) 
 
-data IPLookupResults = IPLookupResults {
-                           location :: Maybe Location,
-                           lookupFunction :: Network.Info.IPv4 -> IO IPLookupResults
-                       }
-
 getIPLocationOverInternet :: IPv4 -> IO (Maybe Location)
 getIPLocationOverInternet ip = do
     let jsonURL = "http://geoip.nekudo.com/api/" ++ show ip
@@ -39,6 +34,11 @@ getIPLocationOverInternet ip = do
                        putStrLn err -- so report the error
                        return Nothing 
         Right ps -> return $ Just ps
+
+data IPLookupResults = IPLookupResults {
+                           location :: Maybe Location,
+                           lookupFunction :: Network.Info.IPv4 -> IO IPLookupResults
+                       }
 
 getIPLocationMemoized:: M.Map IPv4 (Maybe Location) -> IPv4 -> IO IPLookupResults
 getIPLocationMemoized locationMap ip = 
