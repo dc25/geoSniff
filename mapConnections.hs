@@ -8,13 +8,12 @@ import Haste.App.Concurrent
 import qualified Control.Concurrent as C
 import Control.Monad
 import Control.Applicative
-import Data.List (lookup)
 import Data.IORef
 import qualified Data.Set as S
 
 import Foreign
 import Network.Pcap
-import Network.Info
+import qualified Network.Info as N
 #ifndef __HASTE__
 import TcpPacket
 import LocateIP
@@ -65,7 +64,7 @@ await state = do
   liftIO $ readIORef clients >>= maybe (return ("","")) C.takeMVar . lookup sid
 
 #ifndef __HASTE__
-process :: Server State -> PcapHandle -> [Network.Info.IPv4] -> (Network.Info.IPv4 -> IO IPLookupResults) -> Server ()
+process :: Server State -> PcapHandle -> [N.IPv4] -> (N.IPv4 -> IO IPLookupResults) -> Server ()
 process state handle localIPv4 getIPLocation' = do
     (hdr,pkt) <- liftIO $ Network.Pcap.next handle
     bytes <- liftIO $ peekArray (fromIntegral (hdrCaptureLength hdr)) pkt
@@ -82,15 +81,9 @@ process state handle localIPv4 getIPLocation' = do
 
 sniff :: Server State -> Server ()
 sniff state = do
-  -- open once outside of loop
   handle <- liftIO $ openLive "wlan0" 500 False 0
-  -- filtering works but not required
-  -- liftIO $ setFilter handle "tcp[13] & 7!=0" True 0 
-
-  -- read network interfaces one time before entering loop
-  localInterfaces <- liftIO $ getNetworkInterfaces
-  let localIPv4 = fmap ipv4 localInterfaces
-
+  localInterfaces <- liftIO N.getNetworkInterfaces
+  let localIPv4 = fmap N.ipv4 localInterfaces
 #ifndef __HASTE__
   process state handle localIPv4 getIPLocation 
 #else
@@ -120,21 +113,21 @@ clientMain api = withElems ["name","message","chat"] $ \[name, msg, chat] -> do
   fork $ awaitLoop api chat backlog
 
   -- Send a message if the user hits return (charcode 13)
-  msg `onEvent` OnKeyDown $ \k -> do
+  msg `onEvent` OnKeyDown $ \k -> 
     case k of
       13 -> do
         m <- getProp msg "value"
         n <- getProp name "value"
         setProp msg "value" ""
         onServer $ apiSend api <.> (n :: String) <.> (m :: String)
-      _ -> do
+      _ -> 
         return ()
   return ()
 
 
 -- | Launch the application!
 main :: IO ()
-main = do
+main = 
   -- Run the Haste.App application. Please note that a computation in the App
   -- monad should never contain any free variables.
   runApp (mkConfig "ws://192.168.1.194:24601" 24601) $ do

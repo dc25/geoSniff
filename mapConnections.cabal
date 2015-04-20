@@ -23,6 +23,7 @@ executable mapConnections
                        network-info,
                        pcap,
                        network-uri,
-                       http-conduit
+                       http-conduit,
+                       haste-compiler
   -- hs-source-dirs:      
   default-language:    Haskell2010
