@@ -37,7 +37,7 @@ getIPLocationOverInternet ip = do
 
 data IPLookupResults = IPLookupResults {
                            location :: Maybe Location,
-                           lookupFunction :: Network.Info.IPv4 -> IO IPLookupResults
+                           lookupFunction :: IPv4 -> IO IPLookupResults
                        }
 
 getIPLocationMemoized:: M.Map IPv4 (Maybe Location) -> IPv4 -> IO IPLookupResults

@@ -19,9 +19,9 @@ fSyn   = shift 1 1
 fReset = shift 1 2
 
 data Packet = Packet { 
-                sourceAddr :: Network.Info.IPv4,
+                sourceAddr :: IPv4,
                 sourcePort :: Word16,
-                destAddr :: Network.Info.IPv4,
+                destAddr :: IPv4,
                 destPort :: Word16,
                 flags    :: Word8
                 } deriving (Show)
@@ -29,9 +29,9 @@ data Packet = Packet {
 toPort :: [Word8] -> Word16
 toPort [p1, p2] = fromIntegral p2 + shift (fromIntegral p1) 8
 
-toIPv4 :: Word8 -> Word8 -> Word8 -> Word8 -> Network.Info.IPv4
+toIPv4 :: Word8 -> Word8 -> Word8 -> Word8 -> IPv4
 toIPv4 a1 a2 a3 a4 =
-    Network.Info.IPv4 (   shift (fromIntegral a4) 24
+    IPv4 (   shift (fromIntegral a4) 24
            + shift (fromIntegral a3) 16
            + shift (fromIntegral a2) 8
            +        fromIntegral a1
