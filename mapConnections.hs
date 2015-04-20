@@ -101,20 +101,23 @@ sniff state = do
 scrollToBottom :: Elem -> Client ()
 scrollToBottom el = getProp el "scrollHeight" >>= setProp el "scrollTop"
 
+-- Ask the server for a new message, block until one arrives, repeat
+-- Runs in separate thread on browser.
+awaitLoop:: API -> Elem -> [String] -> Client ()
+awaitLoop api chat chatlines = do
+    setProp chat "value" . unlines . reverse $ take 100 chatlines
+    scrollToBottom chat
+    (from, msg) <- onServer $ apiAwait api
+    awaitLoop api chat $ (from ++ ": " ++ msg) : chatlines
+
 -- | Client entry point.
 clientMain :: API -> Client ()
 clientMain api = withElems ["name","message","chat"] $ \[name, msg, chat] -> do
   -- Tell the server we're here, and fill out our backlog.
-  -- The backlog is stored with newest messags first, so we need to reverse it.
   backlog <- map (\(n, m) -> n ++ ": " ++ m) <$> onServer (apiHello api)
 
   -- Ask the server for a new message, block until one arrives, repeat
-  fork $ let awaitLoop chatlines = do
-               setProp chat "value" . unlines . reverse $ take 100 chatlines
-               scrollToBottom chat
-               (from, msg) <- onServer $ apiAwait api
-               awaitLoop $ (from ++ ": " ++ msg) : chatlines
-         in awaitLoop backlog
+  fork $ awaitLoop api chat backlog
 
   -- Send a message if the user hits return (charcode 13)
   msg `onEvent` OnKeyDown $ \k -> do
