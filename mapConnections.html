@@ -1,11 +1,23 @@
-<html>
-  <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-  </head>
-  <body>
-    <script src="mapConnections.js"></script>
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Dynamic TCP Connection Map</title>
+<link href="style.css" rel="stylesheet">
+<body>
+    <div id="panel" style="margin-left: -52px">
+        <button id="drop" onclick="drop()">Drop Markers</button>
+    </div>
+    <div id="map-canvas"></div>
+
     Name: <input type="text" id="name" value="Anon-kun"><br>
     <textarea rows="30" cols="160" id="chat" readonly=""></textarea><br>
     <input type="text" id="message">
-  </body>
-</html>
+
+</body>
+<script src="https://maps.googleapis.com/maps/api/js?v=3.exp&signed_in=true"></script>
+<script src="drop.js"></script>
+<script src="mapConnections.js"></script>
+
+
+
+
