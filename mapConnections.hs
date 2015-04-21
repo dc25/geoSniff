@@ -19,9 +19,16 @@ import TcpPacket
 import LocateIP
 #endif
 
-
 -- | A chat message consists of a sender name and a message.
-type Message = String
+data Message = Message String Double Double deriving Show
+
+instance Binary Message where
+  put (Message txt long lat) = put txt >> put long >> put lat
+  get = do
+      tx <- get
+      lo <- get
+      la <- get
+      return $ Message tx lo la
 
 -- | The type representing our state - a list matching active clients with
 --   the MVars used to notify them of a new message, and a backlog of messages.
@@ -52,14 +59,14 @@ send state msg = do
   liftIO $ do
     cs <- readIORef clients
     -- Fork a new thread for each MVar so slow clients don't hold up fast ones.
-    forM_ cs $ \(_, v) -> C.forkIO $ C.putMVar v msg
+    forM_ cs $ \(_, v) -> C.forkIO $ C.putMVar v $ Message msg 0.0 0.0
 
 -- | Block until a new message arrives, then return it.
 await :: Server State -> Server Message
 await state = do
   sid <- getSessionID
   clients <- state
-  liftIO $ readIORef clients >>= maybe (return "") C.takeMVar . lookup sid
+  liftIO $ readIORef clients >>= maybe (return $ Message ""  0.0  0.0) C.takeMVar . lookup sid
 
 #ifndef __HASTE__
 process :: Server State -> PcapHandle -> [N.IPv4] -> (N.IPv4 -> IO IPLookupResults) -> Server ()
@@ -89,10 +96,10 @@ sniff state = return ()
 
 -- Ask the server for a new message, block until one arrives, repeat
 -- Runs in separate thread on browser.
-awaitLoop:: API -> [String] -> Client ()
+awaitLoop:: API -> [Message] -> Client ()
 awaitLoop api chatlines = do
     withElem "chat" $ \chat -> do
-        setProp chat "value" . unlines . reverse $ take 100 chatlines
+        setProp chat "value" . unlines . map show . reverse $ take 100 chatlines
         getProp chat "scrollHeight" >>= setProp chat "scrollTop"
     msg <- onServer $ apiAwait api
     awaitLoop api $ msg : chatlines
