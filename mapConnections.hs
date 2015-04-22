@@ -19,9 +19,10 @@ import TcpPacket
 import LocateIP
 #endif
 
--- | A chat message consists of a sender name and a message.
+-- A server to client message:
 data Message = Message String Double Double deriving Show
 
+-- Message must be instance of Binary for server -> client communication.
 instance Binary Message where
   put (Message txt long lat) = put txt >> put long >> put lat
   get = do
@@ -52,14 +53,14 @@ hello state = do
       ((sid, v) : filter (\(sess, _) -> sess `S.member` active) cs, ())
     return ()
 
--- | Send a message.
-send :: Server State -> String -> Server ()
+-- | Send a message by notifying everyone who is waiting for a message.
+send :: Server State -> Message -> Server ()
 send state msg = do
   clients <- state
   liftIO $ do
     cs <- readIORef clients
     -- Fork a new thread for each MVar so slow clients don't hold up fast ones.
-    forM_ cs $ \(_, v) -> C.forkIO $ C.putMVar v $ Message msg 0.0 0.0
+    forM_ cs $ \(_, v) -> C.forkIO $ C.putMVar v msg
 
 -- | Block until a new message arrives, then return it.
 await :: Server State -> Server Message
@@ -77,8 +78,10 @@ process state handle localIPv4 getIPLocation' = do
         Just packet@(Packet sa _ da _ _) -> do
             let remoteIp = if sa `elem` localIPv4 then da else sa 
             lookupResults  <- liftIO $ getIPLocation' remoteIp
-            send state $ show packet
-            send state $ show $ location lookupResults
+            let maybeLoc = location lookupResults
+            case maybeLoc of
+                Just loc -> send state $ Message (show packet) (latitude loc) (longitude loc)
+                Nothing -> return ()
             process state handle localIPv4 (lookupFunction lookupResults) -- loop forever
 
         _ -> process state handle localIPv4 getIPLocation' -- loop forever
