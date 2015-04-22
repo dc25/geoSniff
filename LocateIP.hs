@@ -15,7 +15,7 @@ import qualified Data.Map as M
 -- | Type of each JSON entry in record syntax.
 data Location =
   Location { latitude  :: Double,
-              longitude   :: Double
+             longitude :: Double
             } deriving (Show)
 
 instance FromJSON Location where
