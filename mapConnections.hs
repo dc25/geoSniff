@@ -77,7 +77,9 @@ await state = do
 type IPLookupFunction = (N.IPv4 -> IO IPLookupResults)
 
 process :: Server State -> PcapHandle -> [N.IPv4] -> S.Set TcpConnection -> IPLookupFunction  -> Server ()
-process state handle localIPv4 liveConnections getIPLocation' = do
+process state handle localIPv4 liveConnections getLocation = do
+
+    let keepGoing = process state handle localIPv4 -- partial application ; 3 arguments unchanged
 
     -- Get raw data from the network
     (hdr,pkt) <- liftIO $ Network.Pcap.next handle
@@ -90,22 +92,22 @@ process state handle localIPv4 liveConnections getIPLocation' = do
             if leadingPacket packet then do
                 if (S.notMember conn liveConnections) then do
                     let remoteIp = if sa `elem` localIPv4 then da else sa 
-                    lookupResults  <- liftIO $ getIPLocation' remoteIp
+                    lookupResults  <- liftIO $ getLocation remoteIp
                     let maybeLoc = location lookupResults
                     case maybeLoc of
                         Just loc -> do
                             send state $ Message packet  (latitude loc) (longitude loc)
-                            process state handle localIPv4 (S.insert conn liveConnections) (lookupFunction lookupResults) -- loop
-                        Nothing -> process state handle localIPv4 liveConnections getIPLocation' -- loop
+                            keepGoing (S.insert conn liveConnections) (lookupFunction lookupResults) 
+                        Nothing -> keepGoing liveConnections getLocation 
                 else 
-                    process state handle localIPv4 liveConnections getIPLocation' -- loop
+                    keepGoing liveConnections getLocation 
             else -- not leading so must be trailing
                 if S.member conn liveConnections then do
                     send state $ Message packet  0.0 0.0
-                    process state handle localIPv4 (S.delete conn liveConnections) getIPLocation' -- loop
+                    keepGoing (S.delete conn liveConnections) getLocation 
                 else
-                    process state handle localIPv4 liveConnections getIPLocation' -- loop
-        Nothing -> process state handle localIPv4 liveConnections getIPLocation' -- loop
+                    keepGoing liveConnections getLocation 
+        Nothing -> keepGoing liveConnections getLocation 
 
 sniff :: Server State -> Server ()
 sniff state = do
