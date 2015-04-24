@@ -1,7 +1,7 @@
 module TcpPacket (
     TcpConnection(..),
     Packet(..),
-    terminalPacket,
+    leadingPacket,
     nullPacket,
     fFin,
     fSyn,
@@ -93,14 +93,14 @@ nullTcpConnection = TcpConnection (toIPv4 0 0 0 0) (toPort 0 0) (toIPv4 0 0 0 0)
 nullPacket :: Packet
 nullPacket = Packet nullTcpConnection 0
 
-terminalFlags :: Word8 -> Bool
-terminalFlags fl = ((fl .&. fFin) /= 0) || ((fl .&. fReset) /= 0)
+trailingFlags :: Word8 -> Bool
+trailingFlags fl = ((fl .&. fFin) /= 0) || ((fl .&. fReset) /= 0)
 
-sentinalFlags :: Word8 -> Bool
-sentinalFlags fl = ((fl .&. fSyn) /= 0) && ((fl .&. fAck) /= 0)
+leadingFlags :: Word8 -> Bool
+leadingFlags fl = ((fl .&. fSyn) /= 0) && ((fl .&. fAck) /= 0)
 
-terminalPacket :: Packet -> Bool
-terminalPacket pkt = let fl = flags pkt in terminalFlags fl
+leadingPacket :: Packet -> Bool
+leadingPacket pkt = let fl = flags pkt in leadingFlags fl
 
 filterEthernet:: [Word8] -> Maybe Packet
 filterEthernet b =
@@ -146,7 +146,7 @@ filterTCP b =
          _ :_ :_ :_ :              -- sequence number 
          _ :_ :_ :_ :              -- acknowledgment number
          _ :fl:_ :_ :              -- fl: flags - 1 bit each
-         _) -> if sentinalFlags fl || terminalFlags fl 
+         _) -> if leadingFlags fl || trailingFlags fl 
                    then Just $ Packet (TcpConnection 
                                        (toIPv4 0 0 0 0) (toPort s1 s2 )
                                        (toIPv4 0 0 0 0) (toPort d1 d2 ))
