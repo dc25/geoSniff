@@ -22,14 +22,12 @@ import LocateIP
 import Data.Hash
 import Data.List
 
-#ifndef __HASTE__
 hashPacket :: Packet -> String
 hashPacket (Packet (N.IPv4 sw) sp (N.IPv4 dw) dp _) = 
         let a2 = map hash $ sort [sw, dw]
             p2 = map hash $ sort [sp, dp]
             ap2 = zipWith combine a2 p2
         in show $ asWord64 $ combine (head ap2) (head $ tail ap2)
-#endif
 
 -- A server to client message:
 data Message = Message Packet Double Double deriving Show
@@ -102,10 +100,8 @@ process state handle localIPv4 getIPLocation' = do
                     Just loc -> do
                         send state $ Message packet  (latitude loc) (longitude loc)
                         process state handle localIPv4 (lookupFunction lookupResults) -- loop forever
-                    Nothing -> do
-                        return () -- ip location lookup failed
-                        process state handle localIPv4 getIPLocation' -- loop forever
-        _ -> process state handle localIPv4 getIPLocation' -- loop forever
+                    Nothing -> process state handle localIPv4 getIPLocation' -- loop forever
+        Nothing -> process state handle localIPv4 getIPLocation' -- loop forever
 
 sniff :: Server State -> Server ()
 sniff state = do
