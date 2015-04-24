@@ -19,15 +19,7 @@ import TcpPacket
 import LocateIP
 #endif
 
-import Data.Hash
 import Data.List
-
-hashPacket :: Packet -> String
-hashPacket (Packet (N.IPv4 sw) sp (N.IPv4 dw) dp _) = 
-        let a2 = map hash $ sort [sw, dw]
-            p2 = map hash $ sort [sp, dp]
-            ap2 = zipWith combine a2 p2
-        in show $ asWord64 $ combine (head ap2) (head $ tail ap2)
 
 -- A server to client message:
 data Message = Message Packet Double Double deriving Show
@@ -88,7 +80,7 @@ process state handle localIPv4 getIPLocation' = do
     (hdr,pkt) <- liftIO $ Network.Pcap.next handle
     bytes <- liftIO $ peekArray (fromIntegral (hdrCaptureLength hdr)) pkt
     case filterEthernet bytes of 
-        Just packet@(Packet sa _ da _ _) -> do
+        Just packet@(Packet (TcpConnection sa _ da _) _) -> do
             if terminalPacket packet then do
                 send state $ Message packet  0.0 0.0
                 process state handle localIPv4 getIPLocation' -- loop forever

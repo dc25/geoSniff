@@ -1,4 +1,5 @@
 module TcpPacket (
+    TcpConnection(..),
     Packet(..),
     terminalPacket,
     nullPacket,
@@ -24,12 +25,16 @@ fSyn   = shift 1 1
 fReset = shift 1 2
 fAck   = shift 1 4
 
-data Packet = Packet { 
+data TcpConnection = TcpConnection { 
                   sourceAddr :: IPv4,
                   sourcePort :: Word16,
                   destAddr :: IPv4,
-                  destPort :: Word16,
-                  flags    :: Word8
+                  destPort :: Word16
+              }  deriving (Show)
+
+data Packet = Packet { 
+                  connection :: TcpConnection,
+                  flags      :: Word8
               }  deriving (Show)
 
 -- IPv4 must be instance of Binary for server -> client communication.
@@ -39,16 +44,23 @@ instance Binary IPv4 where
       w32 <- get
       return $ IPv4 w32
 
--- Packet must be instance of Binary for server -> client communication.
-instance Binary Packet where
-  put (Packet sa sp da dp fl) = put sa >> put sp >> put da >> put dp >> put fl
+-- TcpConnection must be instance of Binary for server -> client communication.
+instance Binary TcpConnection where
+  put (TcpConnection sa sp da dp) = put sa >> put sp >> put da >> put dp 
   get = do
       da <- get
       dp <- get
       sa <- get
       sp <- get
+      return $ TcpConnection sa sp da dp 
+
+-- Packet must be instance of Binary for server -> client communication.
+instance Binary Packet where
+  put (Packet conn fl) = put conn >> put fl
+  get = do
+      conn <- get
       fl <- get
-      return $ Packet sa sp da dp fl
+      return $ Packet conn fl
 
 toPort :: Word8 -> Word8 -> Word16
 toPort p1 p2 = fromIntegral p2 + shift (fromIntegral p1) 8
@@ -61,8 +73,11 @@ toIPv4 a1 a2 a3 a4 =
            +        fromIntegral a1
          )
 
+nullTcpConnection :: TcpConnection
+nullTcpConnection = TcpConnection (toIPv4 0 0 0 0) (toPort 0 0) (toIPv4 0 0 0 0) (toPort 0 0) 
+
 nullPacket :: Packet
-nullPacket = Packet (toIPv4 0 0 0 0) (toPort 0 0) (toIPv4 0 0 0 0) (toPort 0 0) 0
+nullPacket = Packet nullTcpConnection 0
 
 terminalFlags :: Word8 -> Bool
 terminalFlags fl = ((fl .&. fFin) /= 0) || ((fl .&. fReset) /= 0)
@@ -104,9 +119,10 @@ filterIP b =
          d1:d2:d3:d4:              -- dest ip
          _) -> do 
                    tcp <- filterTCP $ drop (fromIntegral (4*(hl .&. 0xF))) b
-                   Just $ tcp { sourceAddr = toIPv4 s1 s2 s3 s4 ,
-                                destAddr = toIPv4 d1 d2 d3 d4  }
-         
+                   let co = (connection tcp) 
+                               { sourceAddr = toIPv4 s1 s2 s3 s4 ,
+                                 destAddr   = toIPv4 d1 d2 d3 d4  }
+                   Just $ tcp { connection = co }
         _ -> Nothing
 
 filterTCP:: [Word8] -> Maybe Packet
@@ -117,8 +133,9 @@ filterTCP b =
          _ :_ :_ :_ :              -- acknowledgment number
          _ :fl:_ :_ :              -- fl: flags - 1 bit each
          _) -> if sentinalFlags fl || terminalFlags fl 
-                   then Just $ Packet (toIPv4 0 0 0 0) (toPort s1 s2 )
-                                      (toIPv4 0 0 0 0) (toPort d1 d2 )
+                   then Just $ Packet (TcpConnection 
+                                       (toIPv4 0 0 0 0) (toPort s1 s2 )
+                                       (toIPv4 0 0 0 0) (toPort d1 d2 ))
                                           fl 
                    else Nothing
         _ -> Nothing
