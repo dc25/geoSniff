@@ -14,22 +14,37 @@ import qualified Data.Set as S
 import Foreign
 import Network.Pcap
 import qualified Network.Info as N
-#ifndef __HASTE__
 import TcpPacket
+#ifndef __HASTE__
 import LocateIP
 #endif
 
+import Data.Hash
+import Data.List
+
+#ifndef __HASTE__
+hashPacket :: Packet -> String
+hashPacket (Packet (N.IPv4 sw) sp (N.IPv4 dw) dp _) = 
+        let a2 = map hash $ sort [sw, dw]
+            p2 = map hash $ sort [sp, dp]
+            ap2 = zipWith combine a2 p2
+        in show $ asWord64 $ combine (head ap2) (head $ tail ap2)
+#endif
+
 -- A server to client message:
-data Message = Message String Double Double deriving Show
+data Message = Message Packet Double Double deriving Show
 
 -- Message must be instance of Binary for server -> client communication.
 instance Binary Message where
-  put (Message txt long lat) = put txt >> put long >> put lat
+  put (Message pkt long lat) = put pkt >> put long >> put lat
   get = do
-      tx <- get
+      pk <- get
       lo <- get
       la <- get
-      return $ Message tx lo la
+      return $ Message pk lo la
+
+nullMessage :: Message
+nullMessage = Message nullPacket 0.0 0.0
 
 -- | The type representing our state - a list matching active clients with
 --   the MVars used to notify them of a new message, and a backlog of messages.
@@ -67,7 +82,7 @@ await :: Server State -> Server Message
 await state = do
   sid <- getSessionID
   clients <- state
-  liftIO $ readIORef clients >>= maybe (return $ Message ""  0.0  0.0) C.takeMVar . lookup sid
+  liftIO $ readIORef clients >>= maybe (return nullMessage) C.takeMVar . lookup sid
 
 #ifndef __HASTE__
 process :: Server State -> PcapHandle -> [N.IPv4] -> (N.IPv4 -> IO IPLookupResults) -> Server ()
@@ -76,14 +91,20 @@ process state handle localIPv4 getIPLocation' = do
     bytes <- liftIO $ peekArray (fromIntegral (hdrCaptureLength hdr)) pkt
     case filterEthernet bytes of 
         Just packet@(Packet sa _ da _ _) -> do
-            let remoteIp = if sa `elem` localIPv4 then da else sa 
-            lookupResults  <- liftIO $ getIPLocation' remoteIp
-            let maybeLoc = location lookupResults
-            case maybeLoc of
-                Just loc -> send state $ Message (show packet) (latitude loc) (longitude loc)
-                Nothing -> return ()
-            process state handle localIPv4 (lookupFunction lookupResults) -- loop forever
-
+            if terminalPacket packet then do
+                send state $ Message packet  0.0 0.0
+                process state handle localIPv4 getIPLocation' -- loop forever
+            else do
+                let remoteIp = if sa `elem` localIPv4 then da else sa 
+                lookupResults  <- liftIO $ getIPLocation' remoteIp
+                let maybeLoc = location lookupResults
+                case maybeLoc of
+                    Just loc -> do
+                        send state $ Message packet  (latitude loc) (longitude loc)
+                        process state handle localIPv4 (lookupFunction lookupResults) -- loop forever
+                    Nothing -> do
+                        return () -- ip location lookup failed
+                        process state handle localIPv4 getIPLocation' -- loop forever
         _ -> process state handle localIPv4 getIPLocation' -- loop forever
 
 sniff :: Server State -> Server ()
