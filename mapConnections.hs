@@ -19,8 +19,6 @@ import TcpPacket
 import LocateIP
 #endif
 
-import Data.List
-
 -- A server to client message:
 data Message = Message Packet Double Double deriving Show
 
@@ -78,32 +76,43 @@ await state = do
 
 type IPLookupFunction = (N.IPv4 -> IO IPLookupResults)
 
-process :: Server State -> PcapHandle -> [N.IPv4] -> IPLookupFunction  -> Server ()
-process state handle localIPv4 getIPLocation' = do
+process :: Server State -> PcapHandle -> [N.IPv4] -> S.Set TcpConnection -> IPLookupFunction  -> Server ()
+process state handle localIPv4 liveConnections getIPLocation' = do
+
+    -- Get raw data from the network
     (hdr,pkt) <- liftIO $ Network.Pcap.next handle
     bytes <- liftIO $ peekArray (fromIntegral (hdrCaptureLength hdr)) pkt
+
+    -- Convert the raw data into records that describe events of interest.
     case filterEthernet bytes of 
         Just packet@(Packet (TcpConnection sa _ da _) _) -> do
-            if terminalPacket packet then do
-                send state $ Message packet  0.0 0.0
-                process state handle localIPv4 getIPLocation' -- loop forever
-            else do
-                let remoteIp = if sa `elem` localIPv4 then da else sa 
-                lookupResults  <- liftIO $ getIPLocation' remoteIp
-                let maybeLoc = location lookupResults
-                case maybeLoc of
-                    Just loc -> do
-                        send state $ Message packet  (latitude loc) (longitude loc)
-                        process state handle localIPv4 (lookupFunction lookupResults) -- loop forever
-                    Nothing -> process state handle localIPv4 getIPLocation' -- loop forever
-        Nothing -> process state handle localIPv4 getIPLocation' -- loop forever
+            let conn = connection packet
+            if leadingPacket packet then do
+                if (S.notMember conn liveConnections) then do
+                    let remoteIp = if sa `elem` localIPv4 then da else sa 
+                    lookupResults  <- liftIO $ getIPLocation' remoteIp
+                    let maybeLoc = location lookupResults
+                    case maybeLoc of
+                        Just loc -> do
+                            send state $ Message packet  (latitude loc) (longitude loc)
+                            process state handle localIPv4 (S.insert conn liveConnections) (lookupFunction lookupResults) -- loop
+                        Nothing -> process state handle localIPv4 liveConnections getIPLocation' -- loop
+                else 
+                    process state handle localIPv4 liveConnections getIPLocation' -- loop
+            else -- not leading so must be trailing
+                if S.member conn liveConnections then do
+                    send state $ Message packet  0.0 0.0
+                    process state handle localIPv4 (S.delete conn liveConnections) getIPLocation' -- loop
+                else
+                    process state handle localIPv4 liveConnections getIPLocation' -- loop
+        Nothing -> process state handle localIPv4 liveConnections getIPLocation' -- loop
 
 sniff :: Server State -> Server ()
 sniff state = do
   handle <- liftIO $ openLive "wlan0" 500 False 0
   localInterfaces <- liftIO N.getNetworkInterfaces
   let localIPv4 = fmap N.ipv4 localInterfaces
-  process state handle localIPv4 getIPLocation 
+  process state handle localIPv4 S.empty getIPLocation 
 #else
 sniff :: Server State -> Server ()
 sniff state = return ()
