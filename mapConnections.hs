@@ -75,7 +75,10 @@ await state = do
   liftIO $ readIORef clients >>= maybe (return nullMessage) C.takeMVar . lookup sid
 
 #ifndef __HASTE__
-process :: Server State -> PcapHandle -> [N.IPv4] -> (N.IPv4 -> IO IPLookupResults) -> Server ()
+
+type IPLookupFunction = (N.IPv4 -> IO IPLookupResults)
+
+process :: Server State -> PcapHandle -> [N.IPv4] -> IPLookupFunction  -> Server ()
 process state handle localIPv4 getIPLocation' = do
     (hdr,pkt) <- liftIO $ Network.Pcap.next handle
     bytes <- liftIO $ peekArray (fromIntegral (hdrCaptureLength hdr)) pkt
