@@ -32,6 +32,20 @@ data TcpConnection = TcpConnection {
                   destPort :: Word16
               }  deriving (Show)
 
+-- helper function for comparing connections
+comparisonTuple :: TcpConnection -> (Word32, Word16, Word32, Word16)
+comparisonTuple (TcpConnection (IPv4 sa32) sp (IPv4 da32) dp) =
+    if ((sa32 < da32) || sa32 == da32 && sp < dp) 
+    then ( da32, dp, sa32, sp)
+    else ( sa32, sp, da32, dp)
+
+-- TcpConnection must be instance of Ord/Eq for set creation.
+instance Eq TcpConnection where
+  c0 == c1 = comparisonTuple c0 == comparisonTuple c1
+
+instance Ord TcpConnection where
+  c0 <= c1 = comparisonTuple c0 <= comparisonTuple c1
+
 data Packet = Packet { 
                   connection :: TcpConnection,
                   flags      :: Word8
