@@ -1,5 +1,16 @@
 /// <reference path="/home/dave/repos/gitnc/DefinitelyTyped/googlemaps/google.maps.d.ts" />
 
+
+// For debugging.
+function showAlert_ffi(msg:string) {
+    alert(msg);
+}
+
+// For debugging.
+function consoleLog_ffi(msg:string) {
+    console.log(msg);
+}
+
 // If you're adding a number of markers, you may want to drop them on the map
 // consecutively rather than all at once. This example shows how to use
 // window.setTimeout() to space your markers' animation.
@@ -8,9 +19,9 @@ var berlin = new google.maps.LatLng(52.520816, 13.410186);
 
 var neighborhoods = [
   new google.maps.LatLng(52.511467, 13.447179),
-  new google.maps.LatLng(52.549061, 13.422975),
-  new google.maps.LatLng(52.497622, 13.396110),
-  new google.maps.LatLng(52.517683, 13.394393)
+  new google.maps.LatLng(52.549061, 23.422975),
+  new google.maps.LatLng(52.497622, 33.396110),
+  new google.maps.LatLng(52.517683, 43.394393)
 ];
 
 var markers = [];

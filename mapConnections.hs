@@ -5,18 +5,31 @@
 
 import Haste.App
 import Haste.App.Concurrent
+import qualified Haste.Prim as HP
 import qualified Control.Concurrent as C
 import Control.Monad
 import Control.Applicative
 import Data.IORef
 import qualified Data.Set as S
 
-import Foreign
 import Network.Pcap
 import qualified Network.Info as N
 import TcpPacket
 #ifndef __HASTE__
+import qualified Foreign as F -- conflicts with "foreign" in Haste.Prim
 import LocateIP
+#endif
+
+#ifdef __HASTE__
+-- javascript functionality
+foreign import ccall showAlert_ffi :: HP.JSString -> IO ()
+foreign import ccall consoleLog_ffi :: HP.JSString -> IO ()
+#else
+showAlert_ffi :: HP.JSString -> IO ()
+showAlert_ffi js = do return ()
+
+consoleLog_ffi :: HP.JSString -> IO ()
+consoleLog_ffi js = do return ()
 #endif
 
 -- A server to client message:
@@ -83,7 +96,7 @@ process state handle localIPv4 liveConnections getLocation = do
 
     -- Get raw data from the network
     (hdr,pkt) <- liftIO $ Network.Pcap.next handle
-    bytes <- liftIO $ peekArray (fromIntegral (hdrCaptureLength hdr)) pkt
+    bytes <- liftIO $ F.peekArray (fromIntegral (hdrCaptureLength hdr)) pkt
 
     -- Convert the raw data into records that describe events of interest.
     case filterEthernet bytes of 
