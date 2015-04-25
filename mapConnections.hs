@@ -16,20 +16,26 @@ import Network.Pcap
 import qualified Network.Info as N
 import TcpPacket
 #ifndef __HASTE__
-import qualified Foreign as F -- conflicts with "foreign" in Haste.Prim
+import qualified Foreign as F 
 import LocateIP
 #endif
 
-#ifdef __HASTE__
+#ifdef __HASTE__ 
+-- foreign functionality only compiles in haste client due
+-- to conflict with "import Foreign"
 -- javascript functionality
 foreign import ccall showAlert_ffi :: HP.JSString -> IO ()
 foreign import ccall consoleLog_ffi :: HP.JSString -> IO ()
+foreign import ccall consoleLogDouble_ffi :: Double -> Double -> IO ()
 #else
 showAlert_ffi :: HP.JSString -> IO ()
-showAlert_ffi js = do return ()
+showAlert_ffi _ = do return ()
 
 consoleLog_ffi :: HP.JSString -> IO ()
-consoleLog_ffi js = do return ()
+consoleLog_ffi _ = do return ()
+
+consoleLogDouble_ffi :: Double -> Double -> IO ()
+consoleLogDouble_ffi _ _ = do return ()
 #endif
 
 -- A server to client message:
@@ -140,7 +146,8 @@ awaitLoop api chatlines = do
     withElem "chat" $ \chat -> do
         setProp chat "value" . unlines . map show . reverse $ take 100 chatlines
         getProp chat "scrollHeight" >>= setProp chat "scrollTop"
-    msg <- onServer $ apiAwait api
+    msg@(Message _ la lo) <- onServer $ apiAwait api
+    liftIO $ consoleLogDouble_ffi la lo
     awaitLoop api $ msg : chatlines
 
 -- | Client entry point.
