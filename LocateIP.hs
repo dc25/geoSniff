@@ -31,7 +31,7 @@ getIPLocationOverInternet ip = do
     d <- (eitherDecode <$> simpleHttp jsonURL) :: IO (Either String Location)
     case d of
         Left err -> do  -- malformed JSON
-                       putStrLn err -- so report the error
+                       putStrLn $ show ip ++ " : " ++ err
                        return Nothing 
         Right ps -> return $ Just ps
 
