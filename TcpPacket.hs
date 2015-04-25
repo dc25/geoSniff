@@ -62,10 +62,10 @@ instance Binary IPv4 where
 instance Binary TcpConnection where
   put (TcpConnection sa sp da dp) = put sa >> put sp >> put da >> put dp 
   get = do
-      da <- get
-      dp <- get
       sa <- get
       sp <- get
+      da <- get
+      dp <- get
       return $ TcpConnection sa sp da dp 
 
 -- Packet must be instance of Binary for server -> client communication.
