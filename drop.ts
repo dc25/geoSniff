@@ -18,7 +18,7 @@ var map;
 
 function initialize() {
   var mapOptions = {
-    zoom: 12,
+    zoom: 2,
     center: berlin
   };
 
