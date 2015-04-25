@@ -98,7 +98,8 @@ type IPLookupFunction = (N.IPv4 -> IO IPLookupResults)
 process :: Server State -> PcapHandle -> [N.IPv4] -> S.Set TcpConnection -> IPLookupFunction  -> Server ()
 process state handle localIPv4 liveConnections getLocation = do
 
-    let keepGoing = process state handle localIPv4 -- partial application ; 3 arguments unchanged
+    -- partial application ; 3 arguments unchanged
+    let keepGoing = process state handle localIPv4 
 
     -- Get raw data from the network
     (hdr,pkt) <- liftIO $ Network.Pcap.next handle
@@ -106,17 +107,15 @@ process state handle localIPv4 liveConnections getLocation = do
 
     -- Convert the raw data into records that describe events of interest.
     case filterEthernet bytes of 
-        Just packet@(Packet (TcpConnection sa _ da _) _) -> do
-            let conn = connection packet
+        Just packet@(Packet conn@(TcpConnection sa _ da _) _) -> do
             if leadingPacket packet then do
                 if (S.notMember conn liveConnections) then do
                     let remoteIp = if sa `elem` localIPv4 then da else sa 
-                    lookupResults  <- liftIO $ getLocation remoteIp
-                    let maybeLoc = location lookupResults
+                    IPLookupResults maybeLoc func <- liftIO $ getLocation remoteIp
                     case maybeLoc of
-                        Just loc -> do
-                            send state $ Message packet  (latitude loc) (longitude loc)
-                            keepGoing (S.insert conn liveConnections) (lookupFunction lookupResults) 
+                        Just (Location la lo) -> do
+                            send state $ Message packet  la lo
+                            keepGoing (S.insert conn liveConnections) func
                         Nothing -> keepGoing liveConnections getLocation 
                 else 
                     keepGoing liveConnections getLocation 
