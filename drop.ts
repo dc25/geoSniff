@@ -52,6 +52,18 @@ function addMarker(position) {
   }));
 }
 
+// For debugging.
+function consoleLogDouble_ffi(latitude:number, longitude:number) {
+    console.log(latitude, longitude);
+    var coord = new google.maps.LatLng(latitude, longitude);
+    markers.push(new google.maps.Marker({
+      position: coord,
+      map: map,
+      animation: google.maps.Animation.DROP
+    }));
+}
+
+
 function clearMarkers() {
   for (var i = 0; i < markers.length; i++) {
     markers[i].setMap(null);
