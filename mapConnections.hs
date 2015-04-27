@@ -24,23 +24,10 @@ import LocateIP
 #ifdef __HASTE__ 
 -- foreign functionality only compiles in haste client due
 -- to conflict with "import Foreign"
-foreign import ccall showAlert_ffi :: HP.JSString -> IO ()
-foreign import ccall consoleLog_ffi :: HP.JSString -> IO ()
 foreign import ccall placeMarker_ffi :: HP.JSString -> Double -> Double -> IO ()
 foreign import ccall removeMarker_ffi :: HP.JSString -> IO ()
 #else
-
 -- dummies...
-
-showAlert_ffi :: HP.JSString -> IO ()
-showAlert_ffi _ = do return ()
-
-consoleLog_ffi :: HP.JSString -> IO ()
-consoleLog_ffi _ = do return ()
-
-consoleLogDouble_ffi :: HP.JSString -> Double -> Double -> IO ()
-consoleLogDouble_ffi _ _ _ = do return ()
-
 placeMarker_ffi :: HP.JSString -> Double -> Double -> IO ()
 placeMarker_ffi _ _ _ = do return ()
 
@@ -153,9 +140,6 @@ sniff state = return ()
 -- Runs in separate thread on browser.
 awaitLoop:: API -> [Message] -> Client ()
 awaitLoop api chatlines = do
-    withElem "chat" $ \chat -> do
-        setProp chat "value" . unlines . map show . reverse $ take 100 chatlines
-        getProp chat "scrollHeight" >>= setProp chat "scrollTop"
     msg@(Message pkt hsh la lo) <- onServer $ apiAwait api
     if leadingPacket pkt then
         liftIO $ placeMarker_ffi (HP.toJSStr hsh) la lo

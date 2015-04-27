@@ -4,19 +4,11 @@
 <title>Dynamic TCP Connection Map</title>
 <link href="style.css" rel="stylesheet">
 <body>
-    <div id="panel" style="margin-left: -52px">
-        <button id="drop" onclick="drop()">Drop Markers</button>
-    </div>
     <div id="map-canvas"></div>
-
-    Name: <input type="text" id="name" value="Anon-kun"><br>
-    <textarea rows="30" cols="160" id="chat" readonly=""></textarea><br>
-    <input type="text" id="message">
-
+    <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&signed_in=true"></script>
+    <script src="drop.js"></script>
+    <script src="mapConnections.js"></script>
 </body>
-<script src="https://maps.googleapis.com/maps/api/js?v=3.exp&signed_in=true"></script>
-<script src="drop.js"></script>
-<script src="mapConnections.js"></script>
 
 
 
