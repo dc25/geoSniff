@@ -13,6 +13,7 @@ module TcpPacket (
 import Foreign
 import Haste.App
 import Network.Info
+import Data.Hash
 
 
 fFin   :: Word8
@@ -45,6 +46,9 @@ instance Eq TcpConnection where
 
 instance Ord TcpConnection where
   c0 <= c1 = comparisonTuple c0 <= comparisonTuple c1
+
+instance Hashable TcpConnection where
+  hash conn = hash $ comparisonTuple conn 
 
 data Packet = Packet { 
                   connection :: TcpConnection,
