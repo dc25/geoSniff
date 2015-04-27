@@ -25,6 +25,7 @@ var neighborhoods = [
 ];
 
 var markers = [];
+var connectionMarkers = {};
 var map;
 
 function initialize() {
@@ -52,15 +53,26 @@ function addMarker(position) {
   }));
 }
 
-// For debugging.
-function consoleLogDouble_ffi(latitude:number, longitude:number) {
-    console.log(latitude, longitude);
+// Place a marker on the map
+function placeMarker_ffi(hash:string, latitude:number, longitude:number) {
+    console.log(hash, latitude, longitude);
     var coord = new google.maps.LatLng(latitude, longitude);
-    markers.push(new google.maps.Marker({
+    connectionMarkers[hash] = (new google.maps.Marker({
       position: coord,
       map: map,
       animation: google.maps.Animation.DROP
     }));
+}
+
+// Place a marker on the map
+function removeMarker_ffi(hash:string) {
+    console.log(hash);
+    if (connectionMarkers.hasOwnProperty(hash)) {
+        connectionMarkers[hash].setMap(null);
+        delete connectionMarkers[hash]
+    } else {
+        console.log(hash, " not found!");
+    }
 }
 
 
