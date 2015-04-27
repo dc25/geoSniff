@@ -10,48 +10,59 @@ import qualified Control.Concurrent as C
 import Control.Monad
 import Control.Applicative
 import Data.IORef
+import Data.Hash
 import qualified Data.Set as S
 
 import Network.Pcap
 import qualified Network.Info as N
 import TcpPacket
-#ifndef __HASTE__
 import qualified Foreign as F 
+#ifndef __HASTE__
 import LocateIP
 #endif
 
 #ifdef __HASTE__ 
 -- foreign functionality only compiles in haste client due
 -- to conflict with "import Foreign"
--- javascript functionality
 foreign import ccall showAlert_ffi :: HP.JSString -> IO ()
 foreign import ccall consoleLog_ffi :: HP.JSString -> IO ()
-foreign import ccall consoleLogDouble_ffi :: Double -> Double -> IO ()
+foreign import ccall placeMarker_ffi :: HP.JSString -> Double -> Double -> IO ()
+foreign import ccall removeMarker_ffi :: HP.JSString -> IO ()
 #else
+
+-- dummies...
+
 showAlert_ffi :: HP.JSString -> IO ()
 showAlert_ffi _ = do return ()
 
 consoleLog_ffi :: HP.JSString -> IO ()
 consoleLog_ffi _ = do return ()
 
-consoleLogDouble_ffi :: Double -> Double -> IO ()
-consoleLogDouble_ffi _ _ = do return ()
+consoleLogDouble_ffi :: HP.JSString -> Double -> Double -> IO ()
+consoleLogDouble_ffi _ _ _ = do return ()
+
+placeMarker_ffi :: HP.JSString -> Double -> Double -> IO ()
+placeMarker_ffi _ _ _ = do return ()
+
+removeMarker_ffi :: HP.JSString -> IO ()
+removeMarker_ffi _  = do return ()
 #endif
 
 -- A server to client message:
-data Message = Message Packet Double Double deriving Show
+data Message = Message Packet String Double Double deriving Show
 
 -- Message must be instance of Binary for server -> client communication.
 instance Binary Message where
-    put (Message pkt long lat) = put pkt >> put long >> put lat
+    put (Message pkt hsh long lat) = put pkt >> put hsh >> put long >> put lat
     get = do
         pk <- get
+        hsh <- get
         lo <- get
         la <- get
-        return $ Message pk lo la
+        return $ Message pk hsh lo la
 
 nullMessage :: Message
-nullMessage = Message nullPacket 0.0 0.0
+nullMessage = Message nullPacket "" 0.0 0.0
 
 -- | The type representing our state - a list matching active clients with
 --   the MVars used to notify them of a new message, and a backlog of messages.
@@ -107,21 +118,21 @@ process state handle localIPv4 liveConnections getLocation = do
 
     -- Convert the raw data into records that describe events of interest.
     case filterEthernet bytes of 
-        Just packet@(Packet conn@(TcpConnection sa _ da _) _) -> do
+        Just packet@(Packet conn@(TcpConnection sa _ da _) _) -> 
             if leadingPacket packet then do
                 if (S.notMember conn liveConnections) then do
                     let remoteIp = if sa `elem` localIPv4 then da else sa 
                     IPLookupResults maybeLoc func <- liftIO $ getLocation remoteIp
                     case maybeLoc of
                         Just (Location la lo) -> do
-                            send state $ Message packet  la lo
+                            send state $ Message packet (show $ asWord64 $ hash conn) la lo
                             keepGoing (S.insert conn liveConnections) func
-                        Nothing -> keepGoing liveConnections getLocation 
+                        Nothing -> keepGoing liveConnections func
                 else 
                     keepGoing liveConnections getLocation 
             else -- not leading so must be trailing
                 if S.member conn liveConnections then do
-                    send state $ Message packet  0.0 0.0
+                    send state $ Message packet (show $ asWord64 $ hash conn) 0.0 0.0
                     keepGoing (S.delete conn liveConnections) getLocation 
                 else
                     keepGoing liveConnections getLocation 
@@ -145,8 +156,11 @@ awaitLoop api chatlines = do
     withElem "chat" $ \chat -> do
         setProp chat "value" . unlines . map show . reverse $ take 100 chatlines
         getProp chat "scrollHeight" >>= setProp chat "scrollTop"
-    msg@(Message _ la lo) <- onServer $ apiAwait api
-    liftIO $ consoleLogDouble_ffi la lo
+    msg@(Message pkt hsh la lo) <- onServer $ apiAwait api
+    if leadingPacket pkt then
+        liftIO $ placeMarker_ffi (HP.toJSStr hsh) la lo
+    else 
+        liftIO $ removeMarker_ffi (HP.toJSStr hsh) 
     awaitLoop api $ msg : chatlines
 
 -- | Client entry point.
