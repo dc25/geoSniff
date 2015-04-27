@@ -138,14 +138,14 @@ sniff state = return ()
 
 -- Ask the server for a new message, block until one arrives, repeat
 -- Runs in separate thread on browser.
-awaitLoop:: API -> [Message] -> Client ()
-awaitLoop api chatlines = do
-    msg@(Message pkt hsh la lo) <- onServer $ apiAwait api
+awaitLoop:: API -> Client ()
+awaitLoop api = do
+    Message pkt hsh la lo <- onServer $ apiAwait api
     if leadingPacket pkt then
         liftIO $ placeMarker_ffi (HP.toJSStr hsh) la lo
     else 
         liftIO $ removeMarker_ffi (HP.toJSStr hsh) 
-    awaitLoop api $ msg : chatlines
+    awaitLoop api 
 
 -- | Client entry point.
 clientMain :: API -> Client ()
@@ -154,7 +154,7 @@ clientMain api = do
     onServer (apiHello api)
 
     -- Ask the server for a new message, block until one arrives, repeat
-    fork $ awaitLoop api []
+    fork $ awaitLoop api 
 
 
 -- | Launch the application!
