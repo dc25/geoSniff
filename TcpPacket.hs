@@ -3,10 +3,6 @@ module TcpPacket (
     Packet(..),
     leadingPacket,
     nullPacket,
-    fFin,
-    fSyn,
-    fAck,
-    fReset,
     filterEthernet
 ) where
 
