@@ -13,23 +13,16 @@ function initialize() {
           mapOptions);
 }
 
-// Place a marker on the map
 function placeMarker_ffi(hash:string, localIp: string, localPort:number, remoteIp:string, remotePort:number, latitude:number, longitude:number) {
-    console.log(hash, latitude, longitude);
-
-    var contentString = '<h1>' + localIp + ' : ' + localPort + ' -> ' + remoteIp + ' : ' + remotePort + '</h1>' ;
-
-    var infowindow = new google.maps.InfoWindow({
-        content: contentString
-    });
-
-    var coord = new google.maps.LatLng(latitude, longitude);
-
     var marker = new google.maps.Marker({
-        position: coord,
+        position: new google.maps.LatLng(latitude, longitude),
         map: map,
         animation: google.maps.Animation.DROP
         });
+
+    var infowindow = new google.maps.InfoWindow({
+        content: '<h1>' + localIp + ' : ' + localPort + ' -> ' + remoteIp + ' : ' + remotePort + '</h1>' 
+    });
 
     google.maps.event.addListener(marker, 'mouseover', function() {
         infowindow.open(map,marker);
@@ -39,11 +32,9 @@ function placeMarker_ffi(hash:string, localIp: string, localPort:number, remoteI
         infowindow.close();
     });
 
-
     connectionMarkers[hash] = marker;
 }
 
-// Place a marker on the map
 function removeMarker_ffi(hash:string) {
     console.log(hash);
     if (connectionMarkers.hasOwnProperty(hash)) {
