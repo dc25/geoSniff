@@ -141,9 +141,9 @@ sniff state = return ()
 -- Runs in separate thread on browser.
 awaitLoop:: API -> Client ()
 awaitLoop api = do
-    Message pkt@(Packet conn@(TcpConnection sa sp da dp) fl) hsh la lo <- onServer $ apiAwait api
+    Message pkt@(Packet (TcpConnection sa sp _ dp) _) hsh la lo <- onServer $ apiAwait api
     if leadingPacket pkt then
-        liftIO $ placeMarker_ffi (HP.toJSStr hsh) (fromIntegral dp) (HP.toJSStr $ show da) (fromIntegral sp) la lo
+        liftIO $ placeMarker_ffi (HP.toJSStr hsh) (fromIntegral dp) (HP.toJSStr $ show sa) (fromIntegral sp) la lo
     else 
         liftIO $ removeMarker_ffi (HP.toJSStr hsh) 
     awaitLoop api 
