@@ -1,14 +1,12 @@
 /// <reference path="/home/dave/repos/gitnc/DefinitelyTyped/googlemaps/google.maps.d.ts" />
 
-var berlin = new google.maps.LatLng(52.520816, 13.410186);
-
 var connectionMarkers = {};
 var map;
 
 function initialize() {
   var mapOptions = {
     zoom: 2,
-    center: berlin
+    center: new google.maps.LatLng(52.520816, 13.410186)
   };
 
   map = new google.maps.Map(document.getElementById('map-canvas'),
@@ -16,7 +14,7 @@ function initialize() {
 }
 
 // Place a marker on the map
-function placeMarker_ffi(hash:string, latitude:number, longitude:number) {
+function placeMarker_ffi(hash:string, localPort:number, remoteIp:string, remotePort:number, latitude:number, longitude:number) {
     console.log(hash, latitude, longitude);
 
     var contentString = '<div id="content">'+
@@ -54,7 +52,7 @@ function placeMarker_ffi(hash:string, latitude:number, longitude:number) {
         });
 
     google.maps.event.addListener(marker, 'mouseover', function() {
-      infowindow.open(map,marker);
+        infowindow.open(map,marker);
     });
 
     google.maps.event.addListener(marker, 'mouseout', function() {

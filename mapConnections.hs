@@ -24,12 +24,13 @@ import LocateIP
 #ifdef __HASTE__ 
 -- foreign functionality only compiles in haste client due
 -- to conflict with "import Foreign"
-foreign import ccall placeMarker_ffi :: HP.JSString -> Double -> Double -> IO ()
+
+foreign import ccall placeMarker_ffi :: HP.JSString -> Int -> HP.JSString -> Int -> Double -> Double -> IO ()
 foreign import ccall removeMarker_ffi :: HP.JSString -> IO ()
 #else
 -- dummies...
-placeMarker_ffi :: HP.JSString -> Double -> Double -> IO ()
-placeMarker_ffi _ _ _ = do return ()
+placeMarker_ffi :: HP.JSString -> Int -> HP.JSString -> Int -> Double -> Double -> IO ()
+placeMarker_ffi _ _ _ _ _ _ = do return ()
 
 removeMarker_ffi :: HP.JSString -> IO ()
 removeMarker_ffi _  = do return ()
@@ -140,9 +141,9 @@ sniff state = return ()
 -- Runs in separate thread on browser.
 awaitLoop:: API -> Client ()
 awaitLoop api = do
-    Message pkt hsh la lo <- onServer $ apiAwait api
+    Message pkt@(Packet conn@(TcpConnection sa sp da dp) fl) hsh la lo <- onServer $ apiAwait api
     if leadingPacket pkt then
-        liftIO $ placeMarker_ffi (HP.toJSStr hsh) la lo
+        liftIO $ placeMarker_ffi (HP.toJSStr hsh) (fromIntegral dp) (HP.toJSStr $ show da) (fromIntegral sp) la lo
     else 
         liftIO $ removeMarker_ffi (HP.toJSStr hsh) 
     awaitLoop api 
@@ -162,7 +163,7 @@ main :: IO ()
 main = 
     -- Run the Haste.App application. Please note that a computation in the App
     -- monad should never contain any free variables.
-    runApp (mkConfig "ws://192.168.1.114:24601" 24601) $ do
+    runApp (mkConfig "ws://127.0.0.1:24601" 24601) $ do
         -- Create our state-holding elements
         state <- liftServerIO $ newIORef []
 
