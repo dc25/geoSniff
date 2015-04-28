@@ -25,15 +25,18 @@ import LocateIP
 -- foreign functionality only compiles in haste client due
 -- to conflict with "import Foreign"
 
-foreign import ccall placeMarker_ffi :: HP.JSString -> Int -> HP.JSString -> Int -> Double -> Double -> IO ()
+foreign import ccall placeMarker_ffi :: HP.JSString -> HP.JSString -> Int -> HP.JSString -> Int -> Double -> Double -> IO ()
 foreign import ccall removeMarker_ffi :: HP.JSString -> IO ()
+
 #else
--- dummies...
-placeMarker_ffi :: HP.JSString -> Int -> HP.JSString -> Int -> Double -> Double -> IO ()
-placeMarker_ffi _ _ _ _ _ _ = do return ()
+-- dummies ; unused by server
+
+placeMarker_ffi :: HP.JSString -> HP.JSString -> Int -> HP.JSString -> Int -> Double -> Double -> IO ()
+placeMarker_ffi _ _ _ _ _ _ _ = do return ()
 
 removeMarker_ffi :: HP.JSString -> IO ()
 removeMarker_ffi _  = do return ()
+
 #endif
 
 -- A server to client message:
@@ -141,9 +144,9 @@ sniff state = return ()
 -- Runs in separate thread on browser.
 awaitLoop:: API -> Client ()
 awaitLoop api = do
-    Message pkt@(Packet (TcpConnection sa sp _ dp) _) hsh la lo <- onServer $ apiAwait api
+    Message pkt@(Packet (TcpConnection sa sp da dp) _) hsh la lo <- onServer $ apiAwait api
     if leadingPacket pkt then
-        liftIO $ placeMarker_ffi (HP.toJSStr hsh) (fromIntegral dp) (HP.toJSStr $ show sa) (fromIntegral sp) la lo
+        liftIO $ placeMarker_ffi (HP.toJSStr hsh) (HP.toJSStr $ show da) (fromIntegral dp) (HP.toJSStr $ show sa) (fromIntegral sp) la lo
     else 
         liftIO $ removeMarker_ffi (HP.toJSStr hsh) 
     awaitLoop api 
