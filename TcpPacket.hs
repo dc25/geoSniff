@@ -128,15 +128,21 @@ filterIP b =
     case b of
         (hl:_ :_ :_ :              -- hl: internet header length
          _ :_ :_ :_ :              -- fr: flags + fragmentOffset
-         _ :6 :_ :_ :              -- pr: protocol ; 6 -> TCP
+         _ :pr:_ :_ :              -- pr: protocol ; 6 -> TCP ; 17 -> UDP
          s1:s2:s3:s4:              -- source ip
          d1:d2:d3:d4:              -- dest ip
          _) -> do 
-                   tcp <- filterTCP $ drop (fromIntegral (4*(hl .&. 0xF))) b
-                   let co = (connection tcp) 
-                               { sourceAddr = toIPv4 s1 s2 s3 s4 ,
-                                 destAddr   = toIPv4 d1 d2 d3 d4  }
-                   Just $ tcp { connection = co }
+            let payload = drop (fromIntegral (4*(hl .&. 0xF))) b
+            let sa = toIPv4 s1 s2 s3 s4
+            let da = toIPv4 d1 d2 d3 d4 
+            if pr == 6 then do
+                tcp <- filterTCP payload
+                let co = (connection tcp) { sourceAddr = sa, destAddr = da }
+                Just $ tcp { connection = co }
+            else if pr == 17 then do
+                filterUDP payload
+            else
+                _ -> Nothing
         _ -> Nothing
 
 filterTCP:: [Word8] -> Maybe Packet
@@ -153,3 +159,28 @@ filterTCP b =
                                           fl 
                    else Nothing
         _ -> Nothing
+
+filterUDP:: [Word8] -> Maybe Packet
+filterUDP b = 
+    case b of
+        (s1:s2:d1:d2:              -- source port / dest port
+         l1:l2:c1:c2:              -- length / checksum
+         payload) -> if 256*s1+s2 == 53 then -- DNS response
+                         filterDNS payload
+                     else 
+                         Nothing
+        _ -> Nothing
+
+filterDNS:: [Word8] -> Maybe Packet
+filterDNS b = 
+    case b of
+        (_ :_ :f1:f2:              -- id / flags
+         q1:q2:a1:a2:              -- question count / answer count
+         _ :_ :_ :_ :              -- authority count / additional count
+         payload) -> do
+             let questionCount = q1*256+q2
+             let answerCount   = a1*256+a2
+             let answerPayload = skipQuestions questionCount payload
+             let answers = readAnswers answerCount answerPayload payload
+        _ -> Nothing
+
