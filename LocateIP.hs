@@ -33,7 +33,9 @@ getIPLocationOverInternet ip = do
         Left err -> do  -- malformed JSON
                        putStrLn $ show ip ++ " : " ++ err
                        return Nothing 
-        Right ps -> return $ Just ps
+        Right ps -> do 
+                       putStrLn $ show ip ++ " : " ++ show ps
+                       return $ Just ps
 
 data IPLookupResults = IPLookupResults {
                            location :: Maybe Location,
