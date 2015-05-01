@@ -12,6 +12,7 @@ import Control.Applicative
 import Data.IORef
 import Data.Hash
 import qualified Data.Set as S
+import qualified Data.Map as M
 
 import Network.Pcap
 import qualified Network.Info as N
@@ -96,9 +97,10 @@ await state = do
 #ifndef __HASTE__
 
 type IPLookupFunction = (N.IPv4 -> IO IPLookupResults)
+type DNSMap = M.Map N.IPv4 String
 
-process :: Server State -> PcapHandle -> [N.IPv4] -> S.Set TcpConnection -> IPLookupFunction  -> Server ()
-process state handle localIPv4 liveConnections getLocation = do
+process :: Server State -> PcapHandle -> [N.IPv4] -> S.Set TcpConnection -> IPLookupFunction  -> DNSMap -> Server ()
+process state handle localIPv4 liveConnections getLocation dnsMap = do
 
     -- partial application ; 3 arguments unchanged
     let keepGoing = process state handle localIPv4 
@@ -109,6 +111,9 @@ process state handle localIPv4 liveConnections getLocation = do
 
     -- Convert the raw data into records that describe events of interest.
     case filterEthernet bytes of 
+        Just (DNSPacket answers) -> do
+            liftIO $ print answers
+            keepGoing liveConnections getLocation dnsMap
         Just packet@(Packet conn@(TcpConnection sa _ da _) _) -> 
             if leadingPacket packet then do
                 if (S.notMember conn liveConnections) then do
@@ -117,24 +122,25 @@ process state handle localIPv4 liveConnections getLocation = do
                     case maybeLoc of
                         Just (Location la lo) -> do
                             send state $ Message packet (show $ asWord64 $ hash conn) la lo
-                            keepGoing (S.insert conn liveConnections) func
-                        Nothing -> keepGoing liveConnections func
+                            keepGoing (S.insert conn liveConnections) func dnsMap
+                        Nothing -> keepGoing liveConnections func dnsMap
                 else 
-                    keepGoing liveConnections getLocation 
+                    keepGoing liveConnections getLocation  dnsMap
             else -- not leading so must be trailing
                 if S.member conn liveConnections then do
                     send state $ Message packet (show $ asWord64 $ hash conn) 0.0 0.0
-                    keepGoing (S.delete conn liveConnections) getLocation 
+                    keepGoing (S.delete conn liveConnections) getLocation  dnsMap
                 else
-                    keepGoing liveConnections getLocation 
-        Nothing -> keepGoing liveConnections getLocation 
+                    keepGoing liveConnections getLocation  dnsMap
+        Nothing -> keepGoing liveConnections getLocation  dnsMap
 
 sniff :: Server State -> Server ()
 sniff state = do
     handle <- liftIO $ openLive "wlan0" 100 False 1000000
+    -- handle <- liftIO $ openOffline "/tmp/x.dump" 
     localInterfaces <- liftIO N.getNetworkInterfaces
     let localIPv4 = fmap N.ipv4 localInterfaces
-    process state handle localIPv4 S.empty getIPLocation 
+    process state handle localIPv4 S.empty getIPLocation M.empty
 #else
 sniff :: Server State -> Server ()
 sniff state = return ()
