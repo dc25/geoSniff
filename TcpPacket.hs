@@ -1,5 +1,6 @@
 module TcpPacket (
     TcpConnection(..),
+    DNSAnswer(..),
     Packet(..),
     leadingPacket,
     nullPacket,
@@ -10,6 +11,7 @@ import Foreign
 import Haste.App
 import Network.Info
 import Data.Hash
+import Data.Char (chr)
 
 
 fFin   :: Word8
@@ -27,6 +29,11 @@ data TcpConnection = TcpConnection {
                   sourcePort :: Word16,
                   destAddr :: IPv4,
                   destPort :: Word16
+              }  deriving (Show)
+
+data DNSAnswer = DNSAnswer { 
+                  name :: String,
+                  address :: IPv4
               }  deriving (Show)
 
 -- helper function for comparing connections
@@ -49,7 +56,10 @@ instance Hashable TcpConnection where
 data Packet = Packet { 
                   connection :: TcpConnection,
                   flags      :: Word8
-              }  deriving (Show)
+              }  |
+              DNSPacket {
+                  typeA :: [DNSAnswer]
+              } deriving (Show)
 
 -- IPv4 must be instance of Binary for server -> client communication.
 instance Binary IPv4 where
@@ -76,8 +86,12 @@ instance Binary Packet where
       fl <- get
       return $ Packet conn fl
 
+toWord16 :: Word8 -> Word8 -> Word16
+toWord16 w1 w2 = fromIntegral w2 + shift (fromIntegral w1) 8
+
+
 toPort :: Word8 -> Word8 -> Word16
-toPort p1 p2 = fromIntegral p2 + shift (fromIntegral p1) 8
+toPort = toWord16
 
 toIPv4 :: Word8 -> Word8 -> Word8 -> Word8 -> IPv4
 toIPv4 a1 a2 a3 a4 =
@@ -119,7 +133,7 @@ filterEthernet b =
         _ -> Nothing
 
     where filterPayload typeByte1 typeByte2 payload = 
-              if typeByte1*256+typeByte2 == 0x0800 -- IP protocol
+              if toWord16 typeByte1 typeByte2 == 0x0800 -- IP protocol
                   then filterIP payload
               else Nothing
 
@@ -142,7 +156,7 @@ filterIP b =
             else if pr == 17 then do
                 filterUDP payload
             else
-                _ -> Nothing
+                Nothing
         _ -> Nothing
 
 filterTCP:: [Word8] -> Maybe Packet
@@ -163,9 +177,9 @@ filterTCP b =
 filterUDP:: [Word8] -> Maybe Packet
 filterUDP b = 
     case b of
-        (s1:s2:d1:d2:              -- source port / dest port
-         l1:l2:c1:c2:              -- length / checksum
-         payload) -> if 256*s1+s2 == 53 then -- DNS response
+        (s1:s2:_ :_ :              -- source port / dest port
+         _ :_ :_ :_ :              -- length / checksum
+         payload) -> if toPort s1 s2 == 53 then -- DNS response
                          filterDNS payload
                      else 
                          Nothing
@@ -174,13 +188,60 @@ filterUDP b =
 filterDNS:: [Word8] -> Maybe Packet
 filterDNS b = 
     case b of
-        (_ :_ :f1:f2:              -- id / flags
+        (_ :_ :_ :_ :              -- id / flags
          q1:q2:a1:a2:              -- question count / answer count
          _ :_ :_ :_ :              -- authority count / additional count
          payload) -> do
-             let questionCount = q1*256+q2
-             let answerCount   = a1*256+a2
-             let answerPayload = skipQuestions questionCount payload
-             let answers = readAnswers answerCount answerPayload payload
+             let questionCount = toWord16 q1 q2
+             let answerCount   = toWord16 a1 a2
+             let answerPayload = skipDNSQuestions questionCount payload
+             let answers = readDNSAnswers answerCount answerPayload b
+             Just $ DNSPacket answers
         _ -> Nothing
+
+skipDNSQuestions:: Word16 -> [Word8] -> [Word8]
+skipDNSQuestions 0 b = b 
+skipDNSQuestions questionCount b = skipDNSQuestions (questionCount - 1) $ skipOneDNSQuestion b
+
+skipOneDNSQuestion:: [Word8] -> [Word8]
+skipOneDNSQuestion b = drop 4 $ skipDNSString b -- 4 = type(2) + class(2)
+
+skipDNSString :: [Word8] -> [Word8]
+skipDNSString (0:finalAnswer) = finalAnswer
+skipDNSString (n:label) = 
+    if (n .&. 0xC0 == 0xC0) -- DNS string compression
+    then drop 1 label  -- compressed
+    else skipDNSString $ drop (fromIntegral n) label  -- skip length n label and continue
+skipDNSString [] = []
+
+readDNSAnswers:: Word16 -> [Word8] -> [Word8] -> [DNSAnswer]
+readDNSAnswers 0 _ _ = []
+readDNSAnswers answerCount b dnsData = 
+    let queryString = readDNSString b dnsData
+        afterString = skipDNSString b
+        (t1:t2: afterType) = afterString
+        (_:_: _:_:_:_: dataLength1:dataLength2: answerData) = afterType
+        dataType = toWord16 t1 t2
+    in  if dataType == 1 then -- type A record
+            let (a1:a2:a3:a4: nextAnswerData ) = answerData
+                thisAnswer = DNSAnswer queryString (toIPv4 a1 a2 a3 a4)
+            in thisAnswer : readDNSAnswers (answerCount - 1) nextAnswerData dnsData
+        else -- just skip over anything other than type A
+            let dataLength = toWord16 dataLength1 dataLength2
+            in readDNSAnswers (answerCount - 1) (drop (fromIntegral dataLength) answerData) dnsData
+
+readDNSString :: [Word8] -> [Word8] -> String
+readDNSString [] _ = []
+readDNSString (0:_) _ = []
+readDNSString (n1:labelData) dnsData = 
+    if (n1 .&. 0xC0 == 0xC0) -- DNS string compression
+    then 
+        let n2 = head labelData
+            stringOffset = toWord16 (n1 .&. 0x3F) n2
+        in readDNSString (drop (fromIntegral stringOffset) dnsData) dnsData
+    else 
+        let labelLength = fromIntegral n1
+            label = map (chr . fromEnum) (take labelLength labelData)
+            
+        in  label ++ "." ++ readDNSString (drop labelLength labelData) dnsData -- read length n label and continue
 
