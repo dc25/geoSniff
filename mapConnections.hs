@@ -136,7 +136,7 @@ process state handle localIPv4 liveConnections getLocation dnsMap = do
 
 sniff :: Server State -> Server ()
 sniff state = do
-    handle <- liftIO $ openLive "wlan0" 100 False 1000000
+    handle <- liftIO $ openLive "wlan0" 400 False 1000000
     -- handle <- liftIO $ openOffline "/tmp/x.dump" 
     localInterfaces <- liftIO N.getNetworkInterfaces
     let localIPv4 = fmap N.ipv4 localInterfaces
