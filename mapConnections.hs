@@ -11,6 +11,7 @@ import Control.Monad
 import Control.Applicative
 import Data.IORef
 import Data.Hash
+import qualified Data.Foldable as DF
 import qualified Data.Set as S
 import qualified Data.Map as M
 
@@ -41,20 +42,21 @@ removeMarker_ffi _  = do return ()
 #endif
 
 -- A server to client message:
-data Message = Message Packet String Double Double deriving Show
+data Message = Message Packet String Double Double String deriving Show
 
 -- Message must be instance of Binary for server -> client communication.
 instance Binary Message where
-    put (Message pkt hsh long lat) = put pkt >> put hsh >> put long >> put lat
+    put (Message pkt hsh long lat rmt) = put pkt >> put hsh >> put long >> put lat >> put rmt
     get = do
         pk <- get
         hsh <- get
         lo <- get
         la <- get
-        return $ Message pk hsh lo la
+        rmt <- get
+        return $ Message pk hsh lo la rmt
 
 nullMessage :: Message
-nullMessage = Message nullPacket "" 0.0 0.0
+nullMessage = Message nullPacket "" 0.0 0.0 ""
 
 -- | The type representing our state - a list matching active clients with
 --   the MVars used to notify them of a new message, and a backlog of messages.
@@ -99,6 +101,12 @@ await state = do
 type IPLookupFunction = (N.IPv4 -> IO IPLookupResults)
 type DNSMap = M.Map N.IPv4 String
 
+remoteName :: DNSMap -> N.IPv4 -> String
+remoteName dnsMap ip = 
+    case M.lookup ip dnsMap of 
+        Just n -> n
+        Nothing -> show ip
+
 process :: Server State -> PcapHandle -> [N.IPv4] -> S.Set TcpConnection -> IPLookupFunction  -> DNSMap -> Server ()
 process state handle localIPv4 liveConnections getLocation dnsMap = do
 
@@ -111,9 +119,11 @@ process state handle localIPv4 liveConnections getLocation dnsMap = do
 
     -- Convert the raw data into records that describe events of interest.
     case filterEthernet bytes of 
-        Just (DNSPacket answers) ->  do
-            liftIO $ print answers
-            keepGoing liveConnections getLocation dnsMap
+        Just (DNSPacket answers) ->  
+            -- If we got a DNS record containing a list of answers, "fold" it
+            -- into the current map and continue.
+            let newDnsMap = DF.foldl' (\m a-> M.insert (address a) (name a) m) dnsMap answers
+            in keepGoing liveConnections getLocation newDnsMap
         Just packet@(Packet conn@(TcpConnection sa _ da _) _) -> 
             if leadingPacket packet then do
                 if (S.notMember conn liveConnections) then do
@@ -121,14 +131,14 @@ process state handle localIPv4 liveConnections getLocation dnsMap = do
                     IPLookupResults maybeLoc func <- liftIO $ getLocation remoteIp
                     case maybeLoc of
                         Just (Location la lo) -> do
-                            send state $ Message packet (show $ asWord64 $ hash conn) la lo
+                            send state $ Message packet (show $ asWord64 $ hash conn) la lo (remoteName dnsMap remoteIp)
                             keepGoing (S.insert conn liveConnections) func dnsMap
                         Nothing -> keepGoing liveConnections func dnsMap
                 else 
                     keepGoing liveConnections getLocation  dnsMap
             else -- not leading so must be trailing
                 if S.member conn liveConnections then do
-                    send state $ Message packet (show $ asWord64 $ hash conn) 0.0 0.0
+                    send state $ Message packet (show $ asWord64 $ hash conn) 0.0 0.0 ""
                     keepGoing (S.delete conn liveConnections) getLocation  dnsMap
                 else
                     keepGoing liveConnections getLocation  dnsMap
@@ -137,7 +147,7 @@ process state handle localIPv4 liveConnections getLocation dnsMap = do
 sniff :: Server State -> Server ()
 sniff state = do
     handle <- liftIO $ openLive "wlan0" 400 False 1000000
-    -- handle <- liftIO $ openOffline "/tmp/x.dump" 
+    -- handle <- liftIO $ openOffline "x.dump" 
     localInterfaces <- liftIO N.getNetworkInterfaces
     let localIPv4 = fmap N.ipv4 localInterfaces
     process state handle localIPv4 S.empty getIPLocation M.empty
@@ -150,9 +160,9 @@ sniff state = return ()
 -- Runs in separate thread on browser.
 awaitLoop:: API -> Client ()
 awaitLoop api = do
-    Message pkt@(Packet (TcpConnection sa sp da dp) _) hsh la lo <- onServer $ apiAwait api
+    Message pkt@(Packet (TcpConnection _ sp da dp) _) hsh la lo rname <- onServer $ apiAwait api
     if leadingPacket pkt then
-        liftIO $ placeMarker_ffi (HP.toJSStr hsh) (HP.toJSStr $ show da) (fromIntegral dp) (HP.toJSStr $ show sa) (fromIntegral sp) la lo
+        liftIO $ placeMarker_ffi (HP.toJSStr hsh) (HP.toJSStr $ show da) (fromIntegral dp) (HP.toJSStr $ rname) (fromIntegral sp) la lo
     else 
         liftIO $ removeMarker_ffi (HP.toJSStr hsh) 
     awaitLoop api 
