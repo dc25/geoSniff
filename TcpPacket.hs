@@ -204,7 +204,7 @@ skipDNSQuestions 0 b = b
 skipDNSQuestions questionCount b = skipDNSQuestions (questionCount - 1) $ skipOneDNSQuestion b
 
 skipOneDNSQuestion:: [Word8] -> [Word8]
-skipOneDNSQuestion b = drop 4 $ skipDNSString b -- 4 = type(2) + class(2)
+skipOneDNSQuestion b = drop 4 $ skipDNSString b -- 2 bytes type + 2 bytes class
 
 skipDNSString :: [Word8] -> [Word8]
 skipDNSString (0:finalAnswer) = finalAnswer
@@ -218,16 +218,19 @@ readDNSAnswers:: Word16 -> [Word8] -> [Word8] -> [DNSAnswer]
 readDNSAnswers 0 _ _ = []
 readDNSAnswers answerCount b dnsData = 
     let queryString = readDNSString b dnsData
-        afterString = skipDNSString b
-        (t1:t2:_:_:_:_:_:_: dataLength1:dataLength2: answerData) = afterString
-        dataType = toWord16 t1 t2
-    in  if dataType == 1 then -- type A record
-            let (a1:a2:a3:a4: nextAnswerData ) = answerData
-                thisAnswer = DNSAnswer queryString (toIPv4 a1 a2 a3 a4)
-            in thisAnswer : readDNSAnswers (answerCount - 1) nextAnswerData dnsData
-        else -- just skip over anything other than type A
-            let dataLength = toWord16 dataLength1 dataLength2
-            in readDNSAnswers (answerCount - 1) (drop (fromIntegral dataLength) answerData) dnsData
+    in  case skipDNSString b of
+            -- Type 1 - IPv4 address
+            (0:1:_:_:_:_:_:_:_:_:a1:a2:a3:a4: nextAnswerData) -> 
+                let thisAnswer = DNSAnswer queryString (toIPv4 a1 a2 a3 a4)
+                in thisAnswer : readDNSAnswers (answerCount - 1) nextAnswerData dnsData
+
+            -- Some other type - get the length and use length to skip over
+            (_:_:_:_:_:_:_:_:dataLength1:dataLength2: answerData) -> 
+                let dataLength = toWord16 dataLength1 dataLength2
+                in  readDNSAnswers (answerCount - 1) (drop (fromIntegral dataLength) answerData) dnsData
+
+            -- Ran out of data - return empty list of DNS answers.
+            _ -> []
 
 readDNSString :: [Word8] -> [Word8] -> String
 readDNSString [] _ = []                       -- should not happen
