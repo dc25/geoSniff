@@ -219,8 +219,7 @@ readDNSAnswers 0 _ _ = []
 readDNSAnswers answerCount b dnsData = 
     let queryString = readDNSString b dnsData
         afterString = skipDNSString b
-        (t1:t2: afterType) = afterString
-        (_:_: _:_:_:_: dataLength1:dataLength2: answerData) = afterType
+        (t1:t2:_:_:_:_:_:_: dataLength1:dataLength2: answerData) = afterString
         dataType = toWord16 t1 t2
     in  if dataType == 1 then -- type A record
             let (a1:a2:a3:a4: nextAnswerData ) = answerData
@@ -231,17 +230,17 @@ readDNSAnswers answerCount b dnsData =
             in readDNSAnswers (answerCount - 1) (drop (fromIntegral dataLength) answerData) dnsData
 
 readDNSString :: [Word8] -> [Word8] -> String
-readDNSString [] _ = []
-readDNSString (0:_) _ = []
-readDNSString (n1:labelData) dnsData = 
-    if (n1 .&. 0xC0 == 0xC0) -- DNS string compression
+readDNSString [] _ = []                       -- should not happen
+readDNSString (0:_) _ = []                    -- end of url
+readDNSString (n1:labelData) dnsData =        -- a single label of length n1
+    if (n1 .&. 0xC0 == 0xC0)                  -- *or* DNS string compression
     then 
         let n2 = head labelData
-            stringOffset = toWord16 (n1 .&. 0x3F) n2
+            stringOffset = toWord16 (n1 .&. 0x3F) n2 -- re-use existing text
         in readDNSString (drop (fromIntegral stringOffset) dnsData) dnsData
     else 
+        -- read length n label and continue
         let labelLength = fromIntegral n1
             label = map (chr . fromEnum) (take labelLength labelData)
-            
-        in  label ++ "." ++ readDNSString (drop labelLength labelData) dnsData -- read length n label and continue
+        in  label ++ "." ++ readDNSString (drop labelLength labelData) dnsData 
 

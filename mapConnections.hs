@@ -111,7 +111,7 @@ process state handle localIPv4 liveConnections getLocation dnsMap = do
 
     -- Convert the raw data into records that describe events of interest.
     case filterEthernet bytes of 
-        Just (DNSPacket answers) -> do
+        Just (DNSPacket answers) ->  do
             liftIO $ print answers
             keepGoing liveConnections getLocation dnsMap
         Just packet@(Packet conn@(TcpConnection sa _ da _) _) -> 
