@@ -21,7 +21,31 @@ function placeMarker_ffi(hash:string, localIp: string, localPort:number, remoteI
         });
 
     var infowindow = new google.maps.InfoWindow({
-        content: '<h2>' + localIp + ' : ' + localPort + ' -> ' + remoteIp + ' : ' + remotePort + '</h2>' 
+    content: 
+    '<div class="connection-info">                    ' +
+    '   <div class="container-fluid">                 ' +
+    '      <row>                                      ' +
+    '          <div class="col-xs-1">                 ' +
+    '              <b>FROM:</b>                       ' +
+    '          </div>                                 ' +
+    '          <div class="col-xs-11">                ' +
+    '              <tt>                               ' +
+                       localIp + ' : ' + localPort      +  
+    '              </tt>                              ' +
+    '          </div>                                 ' +
+    '      </row>                                     ' +
+    '      <row>                                      ' +
+    '          <div class="col-xs-1">                 ' +
+    '              <b>TO:</b>                         ' +
+    '          </div>                                 ' +
+    '          <div class="col-xs-11">                ' +
+    '              <tt>                               ' +
+                       remoteIp + ' : ' + remotePort    +  
+    '              </tt>                              ' +
+    '          </div>                                 ' +
+    '      </row>                                     ' +
+    '   </div>                                        ' +
+    '</div>                                           ' 
     });
 
     google.maps.event.addListener(marker, 'mouseover', function() {
