@@ -5,13 +5,37 @@ html, body, #map-canvas {
     padding: 0px
 }
 
-#panel {
-    position: absolute;
-    top: 5px;
-    left: 50%;
-    margin-left: -180px;
-    z-index: 5;
-    background-color: #fff;
-    padding: 5px;
-    border: 1px solid #999;
+.topBarItem {
+    padding:5px;
+    margin:5px;
+    border: 1px solid #666;
+    text-decoration:none;
+    font-size:15px;
+    font-family: sans-serif;
+    width: 330px;
+    display:inline-block;
+    border-radius: 0.6em 0.6em 0.6em 0.6em;
+    background-color: #eee;
 }
+
+label, input, button {
+    padding: 0.3em 0.4em;
+    margin: 0.1em 0.2em;
+    -moz-box-sizing: content-box;
+    -webkit-box-sizing: content-box;
+    box-sizing: content-box;
+}
+
+input {
+    margin-right: 0;
+}
+
+button {
+    margin-left: 0;
+}
+
+.topBarItem:hover {
+    background-color: #acf;
+    outline: none;
+}
+
