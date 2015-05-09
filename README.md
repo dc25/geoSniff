@@ -1,5 +1,6 @@
 # Running the mapConnections program
 
-1. Run `make` to compile the `mapConnections` binary.
-2. Run the `mapConnections` binary to start the WebSockets server.
-3. In your browser, visit `mapConnections.html`
+* Run `make` to compile the `mapConnections` binary.
+* Run the `mapConnections` binary to start the WebSockets server.
+* Start a html server in the top level directory for the repository.
+* In your browser, visit `mapConnections.html`
