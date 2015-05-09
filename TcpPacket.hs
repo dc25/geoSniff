@@ -149,14 +149,15 @@ filterIP b =
             let payload = drop (fromIntegral (4*(hl .&. 0xF))) b
             let sa = toIPv4 s1 s2 s3 s4
             let da = toIPv4 d1 d2 d3 d4 
-            if pr == 6 then do
-                tcp <- filterTCP payload
-                let co = (connection tcp) { sourceAddr = sa, destAddr = da }
-                Just $ tcp { connection = co }
-            else if pr == 17 then do
-                filterUDP payload
-            else
-                Nothing
+            case pr of
+                6 -> do
+                    tcp <- filterTCP payload
+                    let co = (connection tcp) { sourceAddr = sa, destAddr = da }
+                    Just $ tcp { connection = co }
+                17 -> 
+                    filterUDP payload
+                _ -> 
+                    Nothing
         _ -> Nothing
 
 filterTCP:: [Word8] -> Maybe Packet
