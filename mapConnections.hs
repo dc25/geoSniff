@@ -118,7 +118,7 @@ process state handle localIPv4 liveConnections getLocation dnsMap = do
     bytes <- liftIO $ F.peekArray (fromIntegral (hdrCaptureLength hdr)) pkt
 
     -- Convert the raw data into records that describe events of interest.
-    case filterEthernet bytes of 
+    case processEthernet bytes of 
         Just (DNSPacket answers) ->  
             -- If we got a DNS record containing a list of answers, "fold" it
             -- into the current map and continue.

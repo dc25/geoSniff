@@ -4,7 +4,7 @@ module TcpPacket (
     Packet(..),
     leadingPacket,
     nullPacket,
-    filterEthernet
+    processEthernet
 ) where
 
 import Foreign
@@ -116,29 +116,29 @@ leadingFlags fl = ((fl .&. fSyn) /= 0) && ((fl .&. fAck) /= 0)
 leadingPacket :: Packet -> Bool
 leadingPacket pkt = let fl = flags pkt in leadingFlags fl
 
-filterEthernet:: [Word8] -> Maybe Packet
-filterEthernet b =
+processEthernet:: [Word8] -> Maybe Packet
+processEthernet b =
     case b of
         (_:_:_:_:_:_:              -- dest mac
          _:_:_:_:_:_:              -- source mac
          0x81:0x00:_:_:            -- Recognize 802.1Q by tag : 0x8100
          typeByte1:typeByte0:      -- EtherType
-         payload) -> filterPayload typeByte1 typeByte0 payload
+         payload) -> processPayload typeByte1 typeByte0 payload
 
         (_:_:_:_:_:_:              -- dest mac
          _:_:_:_:_:_:              -- source mac
          typeByte1:typeByte0:      -- EtherType
-         payload) -> filterPayload typeByte1 typeByte0 payload
+         payload) -> processPayload typeByte1 typeByte0 payload
 
         _ -> Nothing
 
-    where filterPayload typeByte1 typeByte2 payload = 
+    where processPayload typeByte1 typeByte2 payload = 
               if toWord16 typeByte1 typeByte2 == 0x0800 -- IP protocol
-                  then filterIP payload
+                  then processIP payload
               else Nothing
 
-filterIP:: [Word8] -> Maybe Packet
-filterIP b = 
+processIP:: [Word8] -> Maybe Packet
+processIP b = 
     case b of
         (hl:_ :_ :_ :              -- hl: internet header length
          _ :_ :_ :_ :              -- fr: flags + fragmentOffset
@@ -151,17 +151,17 @@ filterIP b =
             let da = toIPv4 d1 d2 d3 d4 
             case pr of
                 6 -> do
-                    tcp <- filterTCP payload
+                    tcp <- processTCP payload
                     let co = (connection tcp) { sourceAddr = sa, destAddr = da }
                     Just $ tcp { connection = co }
                 17 -> 
-                    filterUDP payload
+                    processUDP payload
                 _ -> 
                     Nothing
         _ -> Nothing
 
-filterTCP:: [Word8] -> Maybe Packet
-filterTCP b = 
+processTCP:: [Word8] -> Maybe Packet
+processTCP b = 
     case b of
         (s1:s2:d1:d2:              -- source port / dest port
          _ :_ :_ :_ :              -- sequence number 
@@ -175,19 +175,19 @@ filterTCP b =
                    else Nothing
         _ -> Nothing
 
-filterUDP:: [Word8] -> Maybe Packet
-filterUDP b = 
+processUDP:: [Word8] -> Maybe Packet
+processUDP b = 
     case b of
         (s1:s2:_ :_ :              -- source port / dest port
          _ :_ :_ :_ :              -- length / checksum
          payload) -> if toPort s1 s2 == 53 then -- DNS response
-                         filterDNS payload
+                         processDNS payload
                      else 
                          Nothing
         _ -> Nothing
 
-filterDNS:: [Word8] -> Maybe Packet
-filterDNS b = 
+processDNS:: [Word8] -> Maybe Packet
+processDNS b = 
     case b of
         (_ :_ :_ :_ :              -- id / flags
          q1:q2:a1:a2:              -- question count / answer count
