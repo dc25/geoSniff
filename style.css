@@ -1,41 +1,23 @@
+.navbar {
+    margin-bottom: 0;
+}
 
-html, body, #map-canvas {
+.connection-info {
+    width: 600px;
+}
+
+#map-canvas {
+
+    width: 100%;
+
+    height: -moz-calc(100% - 52px);
+    height: -webkit-calc(100% - 52px);
+    height: calc(100% - 52px);
+}
+
+body, html {
+    padding: 0px;
     height: 100%;
     margin: 0px;
-    padding: 0px
-}
-
-.topBarItem {
-    padding:5px;
-    margin:5px;
-    border: 1px solid #666;
-    text-decoration:none;
-    font-size:15px;
-    font-family: sans-serif;
-    width: 330px;
-    display:inline-block;
-    border-radius: 0.6em 0.6em 0.6em 0.6em;
-    background-color: #eee;
-}
-
-label, input, button {
-    padding: 0.3em 0.4em;
-    margin: 0.1em 0.2em;
-    -moz-box-sizing: content-box;
-    -webkit-box-sizing: content-box;
-    box-sizing: content-box;
-}
-
-input {
-    margin-right: 0;
-}
-
-button {
-    margin-left: 0;
-}
-
-.topBarItem:hover {
-    background-color: #acf;
-    outline: none;
 }
 
