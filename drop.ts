@@ -3,14 +3,18 @@
 var connectionMarkers = {};
 var map;
 
-function initialize() {
-  var mapOptions = {
+var mapOptions = {
     zoom: 2,
     center: new google.maps.LatLng(20.0, 0.0)
-  };
+};
 
-  map = new google.maps.Map(document.getElementById('map-canvas'),
-          mapOptions);
+function worldView() {
+  map.setCenter(mapOptions.center); 
+  map.setZoom(mapOptions.zoom); 
+}
+
+function initialize() {
+  map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
 }
 
 function placeMarker_ffi(hash:string, localIp: string, localPort:number, remoteIp:string, remotePort:number, latitude:number, longitude:number) {
@@ -54,6 +58,11 @@ function placeMarker_ffi(hash:string, localIp: string, localPort:number, remoteI
 
     google.maps.event.addListener(marker, 'mouseout', function() {
         infowindow.close();
+    });
+
+    google.maps.event.addListener(marker, 'click', function() {
+        map.setCenter(marker.getPosition());
+        map.setZoom(15); 
     });
 
     connectionMarkers[hash] = marker;
