@@ -67,5 +67,5 @@ getIPLocationMemoized locationMap ip =
 
 
 getIPLocation:: IPv4 -> IO IPLookupResults
-getIPLocation = getIPLocationMemoized M.empty where
+getIPLocation = getIPLocationMemoized M.empty 
     
