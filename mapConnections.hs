@@ -124,7 +124,7 @@ process state handle localIPv4 liveConnections getLocation dnsMap = do
             -- into the current map and continue.
             let newDnsMap = DF.foldl' (\m a-> M.insert (address a) (name a) m) dnsMap answers
             in keepGoing liveConnections getLocation newDnsMap
-        Just packet@(Packet conn@(TcpConnection sa _ da _) _) -> 
+        Just packet@(TcpPacket conn@(TcpConnection sa _ da _) _) -> 
             if leadingPacket packet then do
                 if (S.notMember conn liveConnections) then do
                     let remoteIp = if sa `elem` localIPv4 then da else sa 
@@ -160,7 +160,7 @@ sniff state = return ()
 -- Runs in separate thread on browser.
 awaitLoop:: API -> Client ()
 awaitLoop api = do
-    Message pkt@(Packet (TcpConnection _ sp da dp) _) hsh la lo rname <- onServer $ apiAwait api
+    Message pkt@(TcpPacket (TcpConnection _ sp da dp) _) hsh la lo rname <- onServer $ apiAwait api
     if leadingPacket pkt then
         liftIO $ placeMarker_ffi (HP.toJSStr hsh) (HP.toJSStr $ show da) (fromIntegral dp) (HP.toJSStr $ rname) (fromIntegral sp) la lo
     else 

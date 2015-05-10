@@ -53,7 +53,7 @@ instance Ord TcpConnection where
 instance Hashable TcpConnection where
   hash conn = hash $ comparisonTuple conn 
 
-data Packet = Packet { 
+data Packet = TcpPacket { 
                   connection :: TcpConnection,
                   flags      :: Word8
               }  |
@@ -80,11 +80,11 @@ instance Binary TcpConnection where
 
 -- Packet must be instance of Binary for server -> client communication.
 instance Binary Packet where
-  put (Packet conn fl) = put conn >> put fl
+  put (TcpPacket conn fl) = put conn >> put fl
   get = do
       conn <- get
       fl <- get
-      return $ Packet conn fl
+      return $ TcpPacket conn fl
 
 toWord16 :: Word8 -> Word8 -> Word16
 toWord16 w1 w2 = fromIntegral w2 + shift (fromIntegral w1) 8
@@ -105,7 +105,7 @@ nullTcpConnection :: TcpConnection
 nullTcpConnection = TcpConnection (toIPv4 0 0 0 0) (toPort 0 0) (toIPv4 0 0 0 0) (toPort 0 0) 
 
 nullPacket :: Packet
-nullPacket = Packet nullTcpConnection 0
+nullPacket = TcpPacket nullTcpConnection 0
 
 trailingFlags :: Word8 -> Bool
 trailingFlags fl = ((fl .&. fFin) /= 0) || ((fl .&. fReset) /= 0)
@@ -168,10 +168,10 @@ processTCP b =
          _ :_ :_ :_ :              -- acknowledgment number
          _ :fl:_ :_ :              -- fl: flags - 1 bit each
          _) -> if leadingFlags fl || trailingFlags fl 
-                   then Just $ Packet (TcpConnection 
-                                       (toIPv4 0 0 0 0) (toPort s1 s2 )
-                                       (toIPv4 0 0 0 0) (toPort d1 d2 ))
-                                          fl 
+                   then Just $ TcpPacket (TcpConnection 
+                                          (toIPv4 0 0 0 0) (toPort s1 s2 )
+                                          (toIPv4 0 0 0 0) (toPort d1 d2 ))
+                                         fl 
                    else Nothing
         _ -> Nothing
 
