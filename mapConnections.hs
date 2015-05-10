@@ -127,19 +127,21 @@ process state handle localIPv4 liveConnections getLocation dnsMap = do
         Just packet@(TcpPacket conn@(TcpConnection sa _ da _) _) -> 
             if leadingPacket packet then 
                 if (S.notMember conn liveConnections) then do
+                    let newLiveConnections = S.insert conn liveConnections
                     let remoteIp = if sa `elem` localIPv4 then da else sa 
-                    IPLookupResults maybeLoc func <- liftIO $ getLocation remoteIp
+                    IPLookupResults maybeLoc newGetLocation <- liftIO $ getLocation remoteIp
                     case maybeLoc of
                         Just (Location la lo) -> do
                             send state $ Message packet (show $ asWord64 $ hash conn) la lo (remoteName dnsMap remoteIp)
-                            keepGoing (S.insert conn liveConnections) func dnsMap
-                        Nothing -> keepGoing liveConnections func dnsMap
+                            keepGoing newLiveConnections newGetLocation dnsMap
+                        Nothing -> keepGoing newLiveConnections newGetLocation dnsMap
                 else 
                     keepGoing liveConnections getLocation  dnsMap
             else -- not leading so must be trailing
                 if S.member conn liveConnections then do
+                    let newLiveConnections = S.delete conn liveConnections
                     send state $ Message packet (show $ asWord64 $ hash conn) 0.0 0.0 ""
-                    keepGoing (S.delete conn liveConnections) getLocation  dnsMap
+                    keepGoing newLiveConnections getLocation  dnsMap
                 else
                     keepGoing liveConnections getLocation  dnsMap
         Nothing -> keepGoing liveConnections getLocation  dnsMap
