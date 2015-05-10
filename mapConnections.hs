@@ -125,7 +125,7 @@ process state handle localIPv4 liveConnections getLocation dnsMap = do
             let newDnsMap = DF.foldl' (\m a-> M.insert (address a) (name a) m) dnsMap answers
             in keepGoing liveConnections getLocation newDnsMap
         Just packet@(TcpPacket conn@(TcpConnection sa _ da _) _) -> 
-            if leadingPacket packet then do
+            if leadingPacket packet then 
                 if (S.notMember conn liveConnections) then do
                     let remoteIp = if sa `elem` localIPv4 then da else sa 
                     IPLookupResults maybeLoc func <- liftIO $ getLocation remoteIp
