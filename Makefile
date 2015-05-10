@@ -1,4 +1,4 @@
-HASTE_SOURCES = TcpPacket.hs  LocateIP.hs  mapConnections.hs  
+HASTE_SOURCES = Packet.hs  LocateIP.hs  mapConnections.hs  
 TYPESCRIPT_SOURCES = drop.ts
 
 JAVASCRIPT_FROM_TYPESCRIPT = $(patsubst %.ts,%.js, $(TYPESCRIPT_SOURCES))

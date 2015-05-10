@@ -17,7 +17,7 @@ import qualified Data.Map as M
 
 import Network.Pcap
 import qualified Network.Info as N
-import TcpPacket
+import Packet
 import qualified Foreign as F 
 #ifndef __HASTE__
 import LocateIP

@@ -1,4 +1,4 @@
-module TcpPacket (
+module Packet (
     TcpConnection(..),
     DNSAnswer(..),
     Packet(..),
