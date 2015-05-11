@@ -3,6 +3,6 @@
 *.hi
 *.js
 *.o
-mapConnections
+geoSniffService
 dist/
 main/
