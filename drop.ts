@@ -68,14 +68,38 @@ function placeMarker_ffi(hash:string, localIp: string, localPort:number, remoteI
     connectionMarkers[hash] = marker;
 }
 
-function removeMarker_ffi(hash:string) {
-    console.log(hash);
+var autoClear : boolean = false;
+var removalQueue : string[] = [];
+
+function toggleAutoClear(element)
+{
+    autoClear = (element.checked);
+}
+
+function removeMarkerImmediate(hash:string) {
     if (connectionMarkers.hasOwnProperty(hash)) {
         connectionMarkers[hash].setMap(null);
         delete connectionMarkers[hash]
     } else {
         console.log(hash, " not found!");
     }
+}
+
+
+function removeMarker_ffi(hash:string) {
+    if (autoClear) {
+        removeMarkerImmediate(hash);
+    } else {
+        removalQueue.push(hash);
+    }
+}
+
+function clearExpired() {
+    var removalQueueLength = removalQueue.length;
+    for (var i = 0; i < removalQueueLength ; i++) {
+        removeMarkerImmediate(removalQueue[i]);
+    }
+    removalQueue.length = 0;
 }
 
 google.maps.event.addDomListener(window, 'load', initialize);

@@ -22,10 +22,9 @@
         <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
 
             <button type="button" class="btn btn-default navbar-btn" onClick="worldView();">World View</button> 
-            <button type="button" class="btn btn-default navbar-btn">Clear All</button> 
-            <button type="button" class="btn btn-default navbar-btn">Clear Expired</button> 
+            <button type="button" class="btn btn-default navbar-btn" onClick="clearExpired()">Clear Expired</button> 
             <label for="autoClear" class="checkbox-inline">
-              <input id="autoClear" type="checkbox"> Autoclear Expired
+              <input id="autoClear" type="checkbox" onchange="toggleAutoClear(this)"> Autoclear Expired
             </label>
         </div><!-- /.navbar-collapse -->
       </div><!-- /.container-fluid -->
