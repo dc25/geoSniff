@@ -24,6 +24,8 @@ function placeMarker_ffi(hash:string, localIp: string, localPort:number, remoteI
         animation: google.maps.Animation.DROP
         });
 
+    marker.setIcon('http://maps.google.com/mapfiles/ms/icons/green-dot.png')
+
     var infowindow = new google.maps.InfoWindow({
     content: 
     '<div class="connection-info">                    ' +
@@ -74,6 +76,9 @@ var removalQueue : string[] = [];
 function toggleAutoClear(element)
 {
     autoClear = (element.checked);
+    if (autoClear) {
+        clearExpired();
+    }
 }
 
 function removeMarkerImmediate(hash:string) {
@@ -91,6 +96,8 @@ function removeMarker_ffi(hash:string) {
         removeMarkerImmediate(hash);
     } else {
         removalQueue.push(hash);
+        var marker = connectionMarkers[hash]
+        marker.setIcon('http://maps.google.com/mapfiles/ms/icons/red-dot.png')
     }
 }
 
