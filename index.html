@@ -20,20 +20,13 @@
 
         <!-- Collect the nav links, forms, and other content for toggling -->
         <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
-          <ul class="nav navbar-nav">
 
-            <li><button type="button" class="btn btn-default navbar-btn" onClick="worldView();">World View</button> </li>
-            <li><button type="button" class="btn btn-default navbar-btn">Clear All</button> </li>
-            <li><button type="button" class="btn btn-default navbar-btn">Clear Expired</button> </li>
-
-            <li>
-              <form class="navbar-form pull-left">
-                <input type="checkbox">
-                <button type="button" class="btn btn-default">Autoclear Expired</button>
-              </form>
-            </li>
-
-          </ul>
+            <button type="button" class="btn btn-default navbar-btn" onClick="worldView();">World View</button> 
+            <button type="button" class="btn btn-default navbar-btn">Clear All</button> 
+            <button type="button" class="btn btn-default navbar-btn">Clear Expired</button> 
+            <label for="autoClear" class="checkbox-inline">
+              <input id="autoClear" type="checkbox"> Autoclear Expired
+            </label>
         </div><!-- /.navbar-collapse -->
       </div><!-- /.container-fluid -->
     </nav>
