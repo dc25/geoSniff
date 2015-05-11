@@ -1,4 +1,8 @@
 {-# LANGUAGE CPP #-}
+module GeoSniff (
+    launchApp
+) where
+
 
 -- | A utility for doing live display of tcp connections in the browser.
 -- | Started out as a copy of the Haste.App chatbox demo program.

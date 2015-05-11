@@ -1,24 +1,26 @@
-HASTE_SOURCES = Packet.hs  LocateIP.hs  mapConnections.hs  
+COMMON_SOURCES = Packet.hs  LocateIP.hs  GeoSniff.hs  
+GHC_SOURCES = $(COMMON_SOURCES) geoSniffService.hs
+HASTE_SOURCES = $(COMMON_SOURCES) geoSniffService.hs
 TYPESCRIPT_SOURCES = drop.ts
 
 JAVASCRIPT_FROM_TYPESCRIPT = $(patsubst %.ts,%.js, $(TYPESCRIPT_SOURCES))
 
 default:all
 
-mapConnections.js: $(HASTE_SOURCES)
-	hastec mapConnections.hs
+geoSniffClient.js: $(HASTE_SOURCES)
+	hastec geoSniffService.hs -o $@
 
-mapConnections: $(HASTE_SOURCES)
-	ghc --make mapConnections.hs -threaded
+geoSniffService: $(GHC_SOURCES)
+	ghc --make geoSniffService.hs -threaded
 
 %.js: %.ts
 	tsc $< 
 
 
-all: mapConnections mapConnections.js $(JAVASCRIPT_FROM_TYPESCRIPT)
+all: geoSniffService geoSniffClient.js $(JAVASCRIPT_FROM_TYPESCRIPT)
 
 clean:
-	-rm mapConnections
+	-rm geoSniffService
 	-rm -r main
 	-rm *~
 	-rm *.hi
