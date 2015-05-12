@@ -20,6 +20,7 @@ function setStartClientCallback_ffi(cb) {
 function connectToServer() {
     var serverAddress:string = (<HTMLInputElement>document.getElementById('server-address')).value;
     B(A(startClient, [[0,serverAddress], 0]));
+    document.getElementById("globe-icon").className += " green";
 }
 
 var connectionMarkers = {};
@@ -117,9 +118,11 @@ function removeMarker_ffi(hash:string) {
     if (autoClear) {
         removeMarkerImmediate(hash);
     } else {
-        removalQueue.push(hash);
-        var marker = connectionMarkers[hash]
-        marker.setIcon('http://maps.google.com/mapfiles/ms/icons/red-dot.png')
+        if (connectionMarkers.hasOwnProperty(hash)) {
+            removalQueue.push(hash);
+            var marker = connectionMarkers[hash]
+            marker.setIcon('http://maps.google.com/mapfiles/ms/icons/red-dot.png')
+        }
     }
 }
 
