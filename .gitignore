@@ -3,6 +3,6 @@
 *.hi
 *.o
 geoSniffService
-dist/
-main/
-_site/
+/dist/
+/main/
+/_site/
