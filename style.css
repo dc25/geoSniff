@@ -25,3 +25,14 @@ body, html {
       color: #0a0;
   }
 
+.navbar-brand {
+    padding: 0px;
+    height: 100%;
+    margin: 0px;
+    padding-left: 10px;
+}
+
+.navbar-btn, .checkbox-inline {
+    margin-left: 10px;
+}
+
