@@ -1,7 +1,6 @@
 *~
 *.swp
 *.hi
-*.js
 *.o
 geoSniffService
 dist/
