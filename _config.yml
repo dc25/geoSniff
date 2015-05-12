@@ -1,0 +1,6 @@
+# Site settings
+baseurl: "/geoSniff" # the subpath of your site, e.g. /blog/
+url: "http://dc25.github.io" # the base hostname & protocol for your site
+
+# Build settings
+markdown: kramdown
