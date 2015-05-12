@@ -184,11 +184,11 @@ clientMain api = do
 
 
 -- | Launch the application!
-launchApp :: String -> IO ()
-launchApp serviceAddress = 
+launchApp :: String -> Int -> IO ()
+launchApp serviceAddress servicePort = 
     -- Run the Haste.App application. Please note that a computation in the App
     -- monad should never contain any free variables.
-    runApp (mkConfig serviceAddress 24601) $ do
+    runApp (mkConfig serviceAddress servicePort ) $ do
         -- Create our state-holding elements
         state <- liftServerIO $ newIORef []
 
@@ -201,6 +201,3 @@ launchApp serviceAddress =
         -- Launch the client
         runClient $ clientMain api
 
--- | Launch the application!
-main :: IO ()
-main = launchApp("ws://127.0.0.1:24601" )

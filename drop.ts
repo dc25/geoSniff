@@ -1,5 +1,27 @@
 /// <reference path="/home/dave/repos/gitnc/DefinitelyTyped/googlemaps/google.maps.d.ts" />
 
+// A & B are required by haste for callbacks.  See: 
+// https://github.com/valderman/haste-compiler/blob/master/doc/js-externals.txt
+// for details.
+var A:any;
+var B:any;
+
+// For debugging.
+function consoleLog_ffi(msg:string) {
+    console.log(msg);
+}
+
+var startClient:any;
+
+function setStartClientCallback_ffi(cb) {
+    startClient=cb;
+}
+
+function connectToServer() {
+    var serverAddress:string = (<HTMLInputElement>document.getElementById('server-address')).value;
+    B(A(startClient, [[0,serverAddress], 0]));
+}
+
 var connectionMarkers = {};
 var map;
 

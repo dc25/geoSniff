@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<title>Dynamic TCP Connection Map</title>
+<title>GeoSniff!</title>
 <link href="bootstrap/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="style.css" rel="stylesheet">
 <body>
@@ -15,7 +15,7 @@
             <span class="icon-bar"></span>
             <span class="icon-bar"></span>
           </button>
-          <a class="navbar-brand" href="#">Connection Map!</a>
+          <a class="navbar-brand" href="#">GeoSniff!</a>
         </div>
 
         <!-- Collect the nav links, forms, and other content for toggling -->
@@ -26,6 +26,17 @@
             <label for="autoClear" class="checkbox-inline">
               <input id="autoClear" type="checkbox" onchange="toggleAutoClear(this)"> Autoclear Expired
             </label>
+
+            <div class="col-sm-3 col-md-3 pull-right">
+                <form class="navbar-form" >
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Server Address" name="server-address" id="server-address">
+                        <div class="input-group-btn">
+                            <button type="button" class="btn btn-default" onClick="connectToServer();"><i class="glyphicon glyphicon-globe"></i></button>
+                        </div>
+                    </div>
+                </form>
+            </div>
         </div><!-- /.navbar-collapse -->
       </div><!-- /.container-fluid -->
     </nav>
