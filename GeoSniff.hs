@@ -62,9 +62,9 @@ instance Binary Message where
 nullMessage :: Message
 nullMessage = Message nullPacket "" 0.0 0.0 ""
 
--- | The type representing our state - a list matching active clients with
+-- | The type representing our clients - a list matching active clients with
 --   the MVars used to notify them of a new message, and a backlog of messages.
-type State = IORef [(SessionID, C.MVar Message)]
+type CurrentClients = IORef [(SessionID, C.MVar Message)]
 
 -- | Data type to hold all our API calls
 data API = API {
@@ -73,32 +73,32 @@ data API = API {
 }
 
 -- | Tell the server we're here and remove any stale sessions.
-hello :: Server State -> Server ()
-hello state = do
+hello :: Server CurrentClients -> Server ()
+hello clients = do
     sid <- getSessionID
     active <- getActiveSessions
-    clients <- state
+    cl <- clients
     liftIO $ do
         v <- C.newEmptyMVar
-        atomicModifyIORef clients $ \cs ->
+        atomicModifyIORef cl $ \cs ->
           ((sid, v) : filter (\(sess, _) -> sess `S.member` active) cs, ())
         return ()
 
 -- | Send a message by notifying everyone who is waiting for a message.
-send :: Server State -> Message -> Server ()
-send state msg = do
-    clients <- state
+send :: Server CurrentClients -> Message -> Server ()
+send clients msg = do
+    cl <- clients
     liftIO $ do
-        cs <- readIORef clients
+        cs <- readIORef cl
         -- Fork a new thread for each MVar so slow clients don't hold up fast ones.
         forM_ cs $ \(_, v) -> C.forkIO $ C.putMVar v msg
 
 -- | Block until a new message arrives, then return it.
-await :: Server State -> Server Message
-await state = do
+await :: Server CurrentClients -> Server Message
+await clients = do
     sid <- getSessionID
-    clients <- state
-    liftIO $ readIORef clients >>= maybe (return nullMessage) C.takeMVar . lookup sid
+    cl <- clients
+    liftIO $ readIORef cl >>= maybe (return nullMessage) C.takeMVar . lookup sid
 
 #ifndef __HASTE__
 
@@ -111,11 +111,11 @@ remoteName dnsMap ip =
         Just n -> n
         Nothing -> show ip
 
-sniffLoop :: Server State -> PcapHandle -> [N.IPv4] -> S.Set TcpConnection -> IPLookupFunction  -> DNSMap -> Server ()
-sniffLoop state handle localIPv4 liveConnections getLocation dnsMap = do
+sniffLoop :: Server CurrentClients -> PcapHandle -> [N.IPv4] -> S.Set TcpConnection -> IPLookupFunction  -> DNSMap -> Server ()
+sniffLoop clients handle localIPv4 liveConnections getLocation dnsMap = do
 
     -- partial application ; 3 arguments unchanged
-    let keepGoing = sniffLoop state handle localIPv4 
+    let keepGoing = sniffLoop clients handle localIPv4 
 
     -- Get raw data from the network
     (hdr,pkt) <- liftIO $ Network.Pcap.next handle
@@ -136,7 +136,7 @@ sniffLoop state handle localIPv4 liveConnections getLocation dnsMap = do
                     IPLookupResults maybeLoc newGetLocation <- liftIO $ getLocation remoteIp
                     case maybeLoc of
                         Just (Location la lo) -> do
-                            send state $ Message packet (show $ asWord64 $ hash conn) la lo (remoteName dnsMap remoteIp)
+                            send clients $ Message packet (show $ asWord64 $ hash conn) la lo (remoteName dnsMap remoteIp)
                             keepGoing newLiveConnections newGetLocation dnsMap
                         Nothing -> keepGoing newLiveConnections newGetLocation dnsMap
                 else 
@@ -144,22 +144,21 @@ sniffLoop state handle localIPv4 liveConnections getLocation dnsMap = do
             else -- not leading so must be trailing
                 if S.member conn liveConnections then do
                     let newLiveConnections = S.delete conn liveConnections
-                    send state $ Message packet (show $ asWord64 $ hash conn) 0.0 0.0 ""
+                    send clients $ Message packet (show $ asWord64 $ hash conn) 0.0 0.0 ""
                     keepGoing newLiveConnections getLocation  dnsMap
                 else
                     keepGoing liveConnections getLocation  dnsMap
         Nothing -> keepGoing liveConnections getLocation  dnsMap
 
-sniff :: Server State -> Server ()
-sniff state = do
+sniff :: Server CurrentClients -> Server ()
+sniff clients = do
     handle <- liftIO $ openLive "wlan0" 400 False 1000000
-    -- handle <- liftIO $ openOffline "x.dump" 
     localInterfaces <- liftIO N.getNetworkInterfaces
     let localIPv4 = fmap N.ipv4 localInterfaces
-    sniffLoop state handle localIPv4 S.empty getIPLocation M.empty
+    sniffLoop clients handle localIPv4 S.empty getIPLocation M.empty
 #else
-sniff :: Server State -> Server ()
-sniff state = return ()
+sniff :: Server CurrentClients -> Server ()
+sniff clients = return ()
 #endif
 
 -- Ask the server for a new message, block until one arrives, repeat
@@ -189,14 +188,14 @@ launchApp serviceAddress servicePort =
     -- Run the Haste.App application. Please note that a computation in the App
     -- monad should never contain any free variables.
     runApp (mkConfig serviceAddress servicePort ) $ do
-        -- Create our state-holding elements
-        state <- liftServerIO $ newIORef []
+        -- Create our clients-holding elements
+        clients <- liftServerIO $ newIORef []
 
-        forkServerIO $ sniff state
+        forkServerIO $ sniff clients
 
         -- Create an API object holding all available functions
-        api <- API <$> remote (hello state)
-                   <*> remote (await state)
+        api <- API <$> remote (hello clients)
+                   <*> remote (await clients)
 
         -- Launch the client
         runClient $ clientMain api
