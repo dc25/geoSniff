@@ -111,11 +111,11 @@ remoteName dnsMap ip =
         Just n -> n
         Nothing -> show ip
 
-process :: Server State -> PcapHandle -> [N.IPv4] -> S.Set TcpConnection -> IPLookupFunction  -> DNSMap -> Server ()
-process state handle localIPv4 liveConnections getLocation dnsMap = do
+sniffLoop :: Server State -> PcapHandle -> [N.IPv4] -> S.Set TcpConnection -> IPLookupFunction  -> DNSMap -> Server ()
+sniffLoop state handle localIPv4 liveConnections getLocation dnsMap = do
 
     -- partial application ; 3 arguments unchanged
-    let keepGoing = process state handle localIPv4 
+    let keepGoing = sniffLoop state handle localIPv4 
 
     -- Get raw data from the network
     (hdr,pkt) <- liftIO $ Network.Pcap.next handle
@@ -156,7 +156,7 @@ sniff state = do
     -- handle <- liftIO $ openOffline "x.dump" 
     localInterfaces <- liftIO N.getNetworkInterfaces
     let localIPv4 = fmap N.ipv4 localInterfaces
-    process state handle localIPv4 S.empty getIPLocation M.empty
+    sniffLoop state handle localIPv4 S.empty getIPLocation M.empty
 #else
 sniff :: Server State -> Server ()
 sniff state = return ()
