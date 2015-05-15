@@ -24,18 +24,9 @@ instance FromJSON Location where
                           ((p .: "location") >>= (.: "longitude")) 
 
 getIPLocationOverInternet :: IPv4 -> IO (Maybe Location)
-getIPLocationOverInternet ip = do
+getIPLocationOverInternet ip = 
     let jsonURL = "http://geoip.nekudo.com/api/" ++ show ip
-
-    -- Get JSON data and decode it
-    d <- (eitherDecode <$> simpleHttp jsonURL) :: IO (Either String Location)
-    case d of
-        Left err -> do  -- malformed JSON
-                       putStrLn $ show ip ++ " : " ++ err
-                       return Nothing 
-        Right ps -> -- do 
-                       -- putStrLn $ show ip ++ " : " ++ show ps
-                       return $ Just ps
+    in (decode <$> simpleHttp jsonURL) :: IO (Maybe Location)
 
 data IPLookupResults = IPLookupResults {
                            location :: Maybe Location,
