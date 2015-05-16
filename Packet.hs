@@ -3,6 +3,7 @@ module Packet (
     DNSAnswer(..),
     Packet(..),
     leadingPacket,
+    trailingPacket,
     nullPacket,
     processEthernet
 ) where
@@ -39,7 +40,7 @@ data DNSAnswer = DNSAnswer {
 -- helper function for comparing connections
 comparisonTuple :: TcpConnection -> (Word32, Word16, Word32, Word16)
 comparisonTuple (TcpConnection (IPv4 sa32) sp (IPv4 da32) dp) =
-    if ((sa32 < da32) || sa32 == da32 && sp < dp) 
+    if ((sa32 < da32) || (sa32 == da32 && sp < dp))
     then ( da32, dp, sa32, sp)
     else ( sa32, sp, da32, dp)
 
@@ -114,7 +115,10 @@ leadingFlags :: Word8 -> Bool
 leadingFlags fl = ((fl .&. fSyn) /= 0) && ((fl .&. fAck) /= 0)
 
 leadingPacket :: Packet -> Bool
-leadingPacket pkt = let fl = flags pkt in leadingFlags fl
+leadingPacket pkt = leadingFlags $ flags pkt
+
+trailingPacket :: Packet -> Bool
+trailingPacket pkt = trailingFlags $ flags pkt
 
 processEthernet:: [Word8] -> Maybe Packet
 processEthernet b =
