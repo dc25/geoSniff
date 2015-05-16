@@ -137,9 +137,13 @@ processEthernet b =
         _ -> Nothing
 
     where processPayload typeByte1 typeByte2 payload = 
-              if toWord16 typeByte1 typeByte2 == 0x0800 -- IP protocol
-                  then processIP payload
-              else Nothing
+              case toWord16 typeByte1 typeByte2 of 
+                  
+                  0x0800 -> -- IPv4 protocol
+                      processIP payload
+
+                  _ ->      -- any other protocol
+                      Nothing
 
 processIP:: [Word8] -> Maybe Packet
 processIP b = 
@@ -154,13 +158,16 @@ processIP b =
             let sa = toIPv4 s1 s2 s3 s4
             let da = toIPv4 d1 d2 d3 d4 
             case pr of
-                6 -> do
+
+                6 -> do -- TCP protocol
                     tcp <- processTCP payload
                     let co = (connection tcp) { sourceAddr = sa, destAddr = da }
                     Just $ tcp { connection = co }
-                17 -> 
+
+                17 ->   -- UDP protocol
                     processUDP payload
-                _ -> 
+
+                _ ->    -- any other protocol
                     Nothing
         _ -> Nothing
 
@@ -212,12 +219,12 @@ skipOneDNSQuestion:: [Word8] -> [Word8]
 skipOneDNSQuestion b = drop 4 $ skipDNSString b -- 2 bytes type + 2 bytes class
 
 skipDNSString :: [Word8] -> [Word8]
+skipDNSString [] = []
 skipDNSString (0:finalAnswer) = finalAnswer
 skipDNSString (n:label) = 
     if (n .&. 0xC0 == 0xC0) -- DNS string compression
     then drop 1 label  -- compressed
     else skipDNSString $ drop (fromIntegral n) label  -- skip length n label and continue
-skipDNSString [] = []
 
 readDNSAnswers:: Word16 -> [Word8] -> [Word8] -> [DNSAnswer]
 readDNSAnswers 0 _ _ = []
