@@ -111,8 +111,8 @@ remoteName dnsMap ip =
         Just n -> n
         Nothing -> show ip
 
-sniffLoop :: Server CurrentClients -> PcapHandle -> [N.IPv4] -> S.Set TcpConnection -> IPLookupFunction  -> DNSMap -> Server ()
-sniffLoop clients handle localIPv4 liveConnections getLocation dnsMap = do
+sniffLoop :: Server CurrentClients -> PcapHandle -> [N.IPv4] -> S.Set TcpConnection -> IPLocationMap  -> DNSMap -> Server ()
+sniffLoop clients handle localIPv4 liveConnections locationMemo dnsMap = do
 
     -- partial application ; 3 arguments unchanged
     let keepGoing = sniffLoop clients handle localIPv4 
@@ -127,35 +127,35 @@ sniffLoop clients handle localIPv4 liveConnections getLocation dnsMap = do
             -- If we got a DNS record containing a list of answers, "fold" it
             -- into the current map and continue.
             let newDnsMap = DF.foldl' (\m a-> M.insert (address a) (name a) m) dnsMap answers
-            in keepGoing liveConnections getLocation newDnsMap
+            in keepGoing liveConnections locationMemo newDnsMap
         Just packet@(TcpPacket conn@(TcpConnection sa _ da _) _) -> 
             if leadingPacket packet then 
                 if (S.notMember conn liveConnections) then do
                     let newLiveConnections = S.insert conn liveConnections
                     let remoteIp = if sa `elem` localIPv4 then da else sa 
-                    IPLookupResults maybeLoc newGetLocation <- liftIO $ getLocation remoteIp
+                    IPLookupResults maybeLoc newLocationMemo <- liftIO $ getIPLocation locationMemo remoteIp
                     case maybeLoc of
                         Just (Location la lo) -> do
                             send clients $ Message packet (show $ asWord64 $ hash conn) la lo (remoteName dnsMap remoteIp)
-                            keepGoing newLiveConnections newGetLocation dnsMap
-                        Nothing -> keepGoing newLiveConnections newGetLocation dnsMap
+                            keepGoing newLiveConnections newLocationMemo dnsMap
+                        Nothing -> keepGoing newLiveConnections newLocationMemo dnsMap
                 else 
-                    keepGoing liveConnections getLocation  dnsMap
+                    keepGoing liveConnections locationMemo  dnsMap
             else -- not leading so must be trailing
                 if S.member conn liveConnections then do
                     let newLiveConnections = S.delete conn liveConnections
                     send clients $ Message packet (show $ asWord64 $ hash conn) 0.0 0.0 ""
-                    keepGoing newLiveConnections getLocation  dnsMap
+                    keepGoing newLiveConnections locationMemo  dnsMap
                 else
-                    keepGoing liveConnections getLocation  dnsMap
-        Nothing -> keepGoing liveConnections getLocation  dnsMap
+                    keepGoing liveConnections locationMemo  dnsMap
+        Nothing -> keepGoing liveConnections locationMemo  dnsMap
 
 sniff :: Server CurrentClients -> Server ()
 sniff clients = do
     handle <- liftIO $ openLive "wlan0" 400 False 1000000
     localInterfaces <- liftIO N.getNetworkInterfaces
     let localIPv4 = fmap N.ipv4 localInterfaces
-    sniffLoop clients handle localIPv4 S.empty getIPLocation M.empty
+    sniffLoop clients handle localIPv4 S.empty M.empty M.empty
 #else
 sniff :: Server CurrentClients -> Server ()
 sniff clients = return ()
